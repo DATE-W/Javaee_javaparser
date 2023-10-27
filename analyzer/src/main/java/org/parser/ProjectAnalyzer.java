@@ -76,8 +76,20 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
                         System.out.println(methodInfo.getMethodName() + ", " + className + ", depth=" + depth);
                         System.out.println("========");
                         System.out.println("Output:");
-                        System.out.println("It is invoked by the following:\n" + methodInfo.getInvokedBy(depth, 1, packageName));
-                        System.out.println("It invokes the following:\n" + methodInfo.getInvokes(depth, 1, packageName));
+                        String tempInvoked = methodInfo.getInvokedBy(depth, 1, packageName);
+                        String tempInvokes = methodInfo.getInvokes(depth, 1, packageName);
+                        if (!tempInvoked.equals("")) {
+                            System.out.println("It is invoked by the following:\n" + tempInvoked);
+                        }
+                        else {
+                            System.out.println("It is invoked by the following:\n[NONE]");
+                        }
+                        if (!tempInvokes.equals("")){
+                            System.out.println("It invokes the following:\n" + tempInvokes);
+                        }
+                        else {
+                            System.out.println("It invokes the following:\n[NONE]");
+                        }
                     }
                 }
             }
