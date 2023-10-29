@@ -1,5 +1,6 @@
 package main;
-class Test {
+
+public class test1 {
     static void sayHello(String name) {
         System.out.println("Hello, " + name + "!");
     }
@@ -7,12 +8,7 @@ class Test {
         sayHello(name1);
         String name2 = "Garfield";
         sayHello(name2);
-    }
-    public static void main(String[] args) {
-        sayHello("Jon");
-        String name3 = "Odie";
-        introduction(name3);
-        test1 t1 = new test1();
-        t1.sayHello("123");
+        Test t = new Test();
+        t.sayHello("hello");
     }
 }

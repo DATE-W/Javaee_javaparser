@@ -12,7 +12,5 @@ class Test {
         sayHello("Jon");
         String name3 = "Odie";
         introduction(name3);
-        test1 t1 = new test1();
-        t1.sayHello("123");
     }
 }

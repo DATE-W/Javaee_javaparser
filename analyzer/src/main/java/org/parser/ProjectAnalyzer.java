@@ -63,37 +63,39 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
 
     public void analyzeSpecificMethod(String methodName, String className, int depth) {
         List<ClassInfo> classInfos = analyze(); // 获取所有类的信息
+        List<MethodInfo> methodInfos = new ArrayList<>();
 
+        // 遍历 classInfos 列表
         for (ClassInfo classInfo : classInfos) {
-            if (classInfo.getClassName().equals(className)) {
-                List<MethodInfo> methodInfos = classInfo.getMethods();
-                for (MethodInfo methodInfo : methodInfos) {
-                    methodInfo.analyze(methodInfos);
+            // 获取每个 ClassInfo 对象中的方法，并将它们添加到 methodInfos 列表中
+            methodInfos.addAll(classInfo.getMethods());
+        }
+        for (MethodInfo methodInfo : methodInfos) {
+            methodInfo.analyze(methodInfos);
+        }
+
+        for (MethodInfo methodInfo : methodInfos) {
+            if (methodInfo.getMethodName().equals(methodName) && methodInfo.getClassName().equals(className)) {
+                System.out.println("Input:");
+                System.out.println(methodInfo.getMethodName() + ", " + className + ", depth=" + depth);
+                System.out.println("========");
+                System.out.println("Output:");
+                String tempInvoked = methodInfo.getInvokedBy(depth, 1, packageName);
+                String tempInvokes = methodInfo.getInvokes(depth, 1, packageName);
+                if (!tempInvoked.equals("")) {
+                    System.out.println("It is invoked by the following:\n" + tempInvoked);
+                } else {
+                    System.out.println("It is invoked by the following:\n[NONE]");
                 }
-                for (MethodInfo methodInfo : methodInfos) {
-                    if (methodInfo.getMethodName().equals(methodName)) {
-                        System.out.println("Input:");
-                        System.out.println(methodInfo.getMethodName() + ", " + className + ", depth=" + depth);
-                        System.out.println("========");
-                        System.out.println("Output:");
-                        String tempInvoked = methodInfo.getInvokedBy(depth, 1, packageName);
-                        String tempInvokes = methodInfo.getInvokes(depth, 1, packageName);
-                        if (!tempInvoked.equals("")) {
-                            System.out.println("It is invoked by the following:\n" + tempInvoked);
-                        }
-                        else {
-                            System.out.println("It is invoked by the following:\n[NONE]");
-                        }
-                        if (!tempInvokes.equals("")){
-                            System.out.println("It invokes the following:\n" + tempInvokes);
-                        }
-                        else {
-                            System.out.println("It invokes the following:\n[NONE]");
-                        }
-                    }
+                if (!tempInvokes.equals("")) {
+                    System.out.println("It invokes the following:\n" + tempInvokes);
+                } else {
+                    System.out.println("It invokes the following:\n[NONE]");
                 }
             }
         }
+
+
     }
 
 }
