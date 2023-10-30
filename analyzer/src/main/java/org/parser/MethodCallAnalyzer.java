@@ -47,12 +47,6 @@ public class MethodCallAnalyzer {
                 packageName = packageClass[0];
                 className = packageClass[1];
                 depth = Integer.parseInt(depthParts[1].trim());
-//
-//                // 输出获取到的信息
-//                System.out.println("方法名：" + methodName);
-//                System.out.println("包名：" + packageName);
-//                System.out.println("类名：" + className);
-//                System.out.println("深度值：" + depth);
             } else {
                 System.out.println("深度信息格式错误，请按照指定格式输入（例如：introduction, main.Test, depth=2）");
             }

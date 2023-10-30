@@ -50,20 +50,31 @@ public class MethodInfo {
 
         // 遍历所有找到的方法调用表达式
         for (MethodCallExpr methodCall : methodCalls) {
-            // 获取被调用方法的名称
-            String calledMethodName = methodCall.getNameAsString();
-            // 遍历传入的所有方法信息
-            for (MethodInfo methodInfo : allMethods) {
-                // 如果找到一个方法，其名称与被调用方法的名称相同
-                if (methodInfo.getMethodName().equals(calledMethodName)) {
-                    // 在当前方法的调用方法列表中添加这个方法
-                    this.addCalledMethod(methodInfo);
-                    // 在这个方法的被调用列表中添加当前方法
-                    methodInfo.addMethodCallingThis(this);
+            try {
+                ResolvedMethodDeclaration resolvedMethod = methodCall.resolve();
+                String qualifiedName = resolvedMethod.getQualifiedSignature();
+                String[] methodCallInfo = qualifiedName.split("\\.");
+                //String methodPackageName = methodCallInfo[0];
+                String methodClassName = methodCallInfo[1];
+                // 获取被调用方法的名称
+                String calledMethodName = methodCall.getNameAsString();
+                // 遍历传入的所有方法信息
+                for (MethodInfo methodInfo : allMethods) {
+                    // 如果找到一个方法，其名称与被调用方法的名称相同
+                    if (methodInfo.getMethodName().equals(calledMethodName) && methodInfo.getClassName().equals(methodClassName)) {
+                        // 在当前方法的调用方法列表中添加这个方法
+                        this.addCalledMethod(methodInfo);
+                        // 在这个方法的被调用列表中添加当前方法
+                        methodInfo.addMethodCallingThis(this);
+                    }
                 }
+            } catch (Exception e) {
+                System.out.println(e);
+                System.out.println("无法解析方法调用: " + methodCall);
             }
         }
     }
+
 
 
     // 获取此方法调用的所有方法，并以特定格式输出
