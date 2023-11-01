@@ -25,7 +25,7 @@ public class ClassInfo implements Analyzable<MethodInfo> {
 
         for (ClassOrInterfaceDeclaration classDeclaration : classDeclarations) {
             // 获取类或接口中所有的方法声明
-            List<MethodDeclaration> methodDeclarations = classDeclaration.getMethods();
+            List<MethodDeclaration> methodDeclarations = classDeclaration.getMethods();     // 在每个类中获取所有方法声明
             for (MethodDeclaration methodDeclaration : methodDeclarations) {
                 // 为每个方法创建MethodInfo对象，并添加到methods列表中
                 MethodInfo methodInfo = new MethodInfo(methodDeclaration);

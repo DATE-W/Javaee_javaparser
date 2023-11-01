@@ -3,7 +3,13 @@ package org.parser;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.Range;
+
+import java.util.Optional;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,12 +18,14 @@ public class MethodInfo {
     private final MethodDeclaration declaration; // 方法声明
     private final List<MethodInfo> calledMethods; // 被当前方法调用的方法列表
     private final List<MethodInfo> methodsCallingThis; // 调用当前方法的方法列表
+    private final List<List<ParameterInfo>> invokedParameters;   // 当前方法接受的实际参数
 
     // 构造函数，初始化MethodInfo对象
     public MethodInfo(MethodDeclaration declaration) {
         this.declaration = declaration;
         this.calledMethods = new ArrayList<>();
         this.methodsCallingThis = new ArrayList<>();
+        this.invokedParameters = new ArrayList<>();
     }
 
     // 添加一个被当前方法调用的方法
@@ -54,27 +62,24 @@ public class MethodInfo {
                 ResolvedMethodDeclaration resolvedMethod = methodCall.resolve();
                 String qualifiedName = resolvedMethod.getQualifiedSignature();
                 String[] methodCallInfo = qualifiedName.split("\\.");
-                //String methodPackageName = methodCallInfo[0];
                 String methodClassName = methodCallInfo[1];
-                // 获取被调用方法的名称
                 String calledMethodName = methodCall.getNameAsString();
+
                 // 遍历传入的所有方法信息
                 for (MethodInfo methodInfo : allMethods) {
-                    // 如果找到一个方法，其名称与被调用方法的名称相同
                     if (methodInfo.getMethodName().equals(calledMethodName) && methodInfo.getClassName().equals(methodClassName)) {
-                        // 在当前方法的调用方法列表中添加这个方法
                         this.addCalledMethod(methodInfo);
-                        // 在这个方法的被调用列表中添加当前方法
                         methodInfo.addMethodCallingThis(this);
                     }
                 }
+
             } catch (Exception e) {
                 System.out.println(e);
                 System.out.println("无法解析方法调用: " + methodCall);
             }
         }
-    }
 
+    }
 
 
     // 获取此方法调用的所有方法，并以特定格式输出
@@ -195,8 +200,55 @@ public class MethodInfo {
     }
 
 
+    // 找到某个方法获得的参数
+    public void getInvokedParameters() {
+        // 遍历所有调用此方法的方法
+        for (MethodInfo method : methodsCallingThis) {
+            // 从每个方法中找到所有的方法调用表达式
+            List<MethodCallExpr> methodCalls = method.declaration.findAll(MethodCallExpr.class);
+            // 遍历找到的方法调用表达式
+            for (MethodCallExpr methodCall : methodCalls) {
+                try {
+                    // 检查这个方法调用表达式是否是对当前方法的调用
+                    ResolvedMethodDeclaration resolvedMethod = methodCall.resolve();
+                    if (resolvedMethod.getQualifiedSignature().equals(this.declaration.resolve().getQualifiedSignature())) {
+                        List<ParameterInfo> parameterInfoList = new ArrayList<>();
 
+                        // 获取并存储实际传递的参数
+                        List<Expression> arguments = methodCall.getArguments();
+                        if (!arguments.isEmpty()) {
+//                            System.out.println("调用 " + getMethodName() + " 的参数:");
+                        }
 
+                        for (Expression argument : arguments) {
+                            // 获取变量名
+                            String variableName = argument.toString();
+                            // 获取变量的行数
+                            Range expressionRange = argument.getRange().orElse(null);
+                            int variableStartLine = 0;
+                            String variableClassName = "";
+                            if (expressionRange != null) {
+                                variableStartLine = expressionRange.begin.line;
+                            }
+                            // 获取变量的类名
+                            String className = "";
+                            Optional<ClassOrInterfaceDeclaration> classOrInterface = argument.findAncestor(ClassOrInterfaceDeclaration.class);
+                            if (classOrInterface.isPresent()) {
+                                // 获取类名
+                                className = classOrInterface.get().getNameAsString();
+                            }
+                            ParameterInfo paraInfo = new ParameterInfo(variableName,variableClassName, variableStartLine);
+                            // 把 parameterInfo 传入参数列表
+                            parameterInfoList.add(paraInfo);
+                        }
 
-
+                        this.invokedParameters.add(parameterInfoList);
+                    }
+                } catch (Exception e) {
+                    System.out.println(e);
+                    System.out.println("无法解析方法调用: " + methodCall);
+                }
+            }
+        }
+    }
 }
