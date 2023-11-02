@@ -2,17 +2,15 @@ package org.parser;
 
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.Range;
 
-import java.util.Optional;
-
-
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class MethodInfo {
     private final MethodDeclaration declaration; // 方法声明
@@ -51,6 +49,20 @@ public class MethodInfo {
         return declaration.findAncestor(ClassOrInterfaceDeclaration.class).get().getNameAsString();
     }
 
+    public Map<Type,String> getParamList(){
+        Map<Type,String> paramList=new HashMap<>();
+        for (Parameter parameter : declaration.getParameters()) {
+            Type paramType=parameter.getType();
+            String paramName= parameter.getNameAsString();
+            paramList.put(paramType,paramName);
+        }
+        return paramList;
+    }
+
+    /*
+    JieChu said: 传入的参数是：有哪些方法可能被本MethodInfo调用
+    该analyze执行这样的功能：找到有哪些方法被该方法调用，并在被调用的方法里添加“我被该方法调用”的信息，该信息存储在被调用方法的methodsCallingThis字段中
+     */
     // 分析方法，找出此方法调用了哪些方法，并更新calledMethods和methodsCallingThis列表
     public void analyze(List<MethodInfo> allMethods) {
         // 从当前方法声明中找到所有的方法调用表达式
@@ -82,7 +94,11 @@ public class MethodInfo {
     }
 
 
-    // 获取此方法调用的所有方法，并以特定格式输出
+    /*
+    JieChu said: “获取此方法调用的所有方法”在analyze方法中就已经完成了，
+    这个getInvokes的实际作用是找到这些被调用的方法的深度和其所属的类。
+    被调用的方法所属的包在getInvokes不断的递归调用中是不变的。
+     */
     public String getInvokes(int depth, int currentDepth, String packageName) {
         List<String> result = new ArrayList<>(); // 创建一个列表来存储结果字符串
 

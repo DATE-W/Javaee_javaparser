@@ -97,6 +97,11 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
                     for (ClassOrInterfaceDeclaration classDeclaration : classDeclarations) {
                         // 创建类信息对象并分析
                         ClassInfo classInfo = new ClassInfo(cu);
+                        /*
+                        JieChu: 事实上，ClassInfo.analyze()方法是根据传进去的cu来分析一个类中所有的MethodInfo,
+                        并将这些MethodInfo存入ClassInfo.methods。
+                        事实上，ClassInfo的主要作用就是储存一个类的所有MethodInfo
+                         */
                         classInfo.analyze();
                         classInfos.add(classInfo);
                     }
@@ -139,19 +144,27 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
                 } else {
                     System.out.println("It invokes the following:\n[NONE]");
                 }
+                //找到一个匹配的方法肯定就退出了啊，为了性能。
+                break;
             }
         }
     }
     // 查看被调用的方法
 
+    //这个methodTracingAnalyze用来统一统计目标项目中所有方法被哪些方法调用+调用哪些方法+被调用时传入的参数名/参数所属类?/该方法在哪被调用
     public void methodTracingAnalyze() {
         List<ClassInfo> classInfos = analyze();     // 调用 analyze 获取所有类的信息
+        List<MethodInfo> methodInfos=new ArrayList<>();
+
+        for (ClassInfo classInfo:classInfos){
+            methodInfos.addAll(classInfo.getMethods());
+        }
+        for(MethodInfo methodInfo:methodInfos){
+            //这一句调用analyze找到每个method有哪些方法调用了它+被哪些方法调用
+            methodInfo.analyze(methodInfos);
+        }
 
         for (ClassInfo classInfo : classInfos) {
-            List<MethodInfo> methodInfos = classInfo.getMethods();
-            for (MethodInfo methodInfo : methodInfos) {
-                methodInfo.analyze(methodInfos);
-            }
 //            System.out.println("分析的类" + classInfo.getClassName());
             for (MethodInfo methodInfo : methodInfos) {
 //                System.out.println("分析的函数" + methodInfo.getMethodName());
