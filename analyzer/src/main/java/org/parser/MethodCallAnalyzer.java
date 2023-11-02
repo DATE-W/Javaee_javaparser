@@ -2,59 +2,56 @@ package org.parser;
 
 import java.util.Scanner;
 
-public class MethodCallAnalyzer {
-    private String methodName;
-    private String packageName;
-    private String className;
-    private int depth;
-
+class MethodCallAnalyzer {
     public static void main(String[] args) {
-        // 创建Scanner对象，用于获取用户的输入
-        Scanner scanner = new Scanner(System.in);
-
-        // 提示用户输入信息
-        System.out.println("请输入方法信息（格式如：introduction, main.Test, depth=2）：");
-
-        // 获取用户输入的字符串
-        String userInput = scanner.nextLine();
-
-        userInput = userInput.replaceAll("\\s", "");
-
-        // 关闭Scanner对象
-        scanner.close();
-
-        // 创建MethodCallAnalyzer对象
-        MethodCallAnalyzer analyzer = new MethodCallAnalyzer();
-
-        // 处理用户的输入
-        analyzer.analyzeMethodCall(userInput);
+        Scanner scanner = new Scanner(System.in); // 创建 scanner 用于读取系统输入
+        System.out.println("请输入方法信息（格式如：introduction, main.Test, depth=2）："); // 输出提示信息
+        String userInput = scanner.nextLine(); // 从 scanner 中获取用户输入字符串
+        userInput = userInput.replaceAll("\\s", ""); // 去除空白符
+        scanner.close(); // 关闭 scanner
+        MethodCallAnalyzer analyzer = new MethodCallAnalyzer(); // 创建 analyzer
+        analyzer.analyzeMethodCall(userInput); // 分析用户输入
     }
 
     public void analyzeMethodCall(String userInput) {
-        // 分割用户输入的字符串，获取各个部分的信息
+        // 用 ',' 分割用户输入字符串
         String[] parts = userInput.split(",");
-
-        if (parts.length == 3) {
-            methodName = parts[0].trim();
-            String fullClassName = parts[1].trim();
-            String depthInfo = parts[2].trim();
-
-
-            String[] packageClass = fullClassName.split("\\.");
-
-            // 从depthInfo字符串中提取数字
-            String[] depthParts = depthInfo.split("=");
-            if (packageClass.length == 2 && depthParts.length == 2 && depthParts[0].trim().equalsIgnoreCase("depth")) {
-                packageName = packageClass[0];      // 这个也是从输入中获得的
-                className = packageClass[1];
-                depth = Integer.parseInt(depthParts[1].trim());
-            } else {
-                System.out.println("深度信息格式错误，请按照指定格式输入（例如：introduction, main.Test, depth=2）");
-            }
-        } else {
-            System.out.println("输入格式错误，请按照指定格式输入（例如：introduction, main.Test, depth=2）");
+        if (parts.length != 3) {
+            System.out.println("参数个数错误");
+            return;
         }
 
+        // 获得方法名
+        String methodName = parts[0];
+
+        // 提取包名和类名
+        String[] packageAndClass = parts[1].split("\\.");
+        if (packageAndClass.length != 2) {
+            System.out.println("参数 2 格式错误");
+            return;
+        }
+
+        // 获得包名和类名
+        String packageName = packageAndClass[0];
+        String className = packageAndClass[1];
+
+        // 提取深度信息
+        String[] depthInfo = parts[2].split("=");
+        if (depthInfo.length != 2 || !depthInfo[0].equalsIgnoreCase("depth")) {
+            System.out.println("参数 3 格式错误");
+            return;
+        }
+
+        // 获取深度值
+        int depth;
+        try {
+            depth = Integer.parseInt(depthInfo[1]);
+        } catch (NumberFormatException e) {
+            System.out.println("参数 3 格式错误");
+            return;
+        }
+
+        // 创建分析器进行分析
         ProjectAnalyzer projectAnalyzer = new ProjectAnalyzer(packageName);
         projectAnalyzer.analyzeSpecificMethod(methodName, className, depth);
     }
