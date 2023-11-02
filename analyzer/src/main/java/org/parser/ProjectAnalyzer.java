@@ -22,6 +22,7 @@ import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import com.github.javaparser.Range;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -191,6 +192,7 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
         }
     }
 
+
     private void processAssignments(ClassOrInterfaceDeclaration classDeclaration) {
         // 处理赋值情况的代码
         // 先去找赋值的情况
@@ -200,63 +202,25 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
             Expression leftExpr = assignExpr.getTarget();
             // 获取赋值后面的内容
             Expression rightExpr = assignExpr.getValue();
+            // 获取赋值表达式的源代码范围
+            Range expressionRange = assignExpr.getRange().orElse(null);
+            // 获取起始行
+            int startLine = 0;
+            if (expressionRange != null)
+                startLine = expressionRange.begin.line;
 
             // 创建 CallNode，并将赋值前面的内容添加到 CallNode
-            CallNode callNode = new CallNode(rightExpr.toString(), classDeclaration.getNameAsString(), -1);
-
+            CallNode callNode = new CallNode(rightExpr.toString(), classDeclaration.getNameAsString(), startLine);
+            System.out.println(callNode.getNodeInfo() + " -> ");
             // 如果赋值后面的内容不为空，将其作为 nextNode 添加到 CallNode
             if (rightExpr != null) {
-                CallNode nextNode = new CallNode(leftExpr.toString(), classDeclaration.getNameAsString(), -1);
+                CallNode nextNode = new CallNode(leftExpr.toString(), classDeclaration.getNameAsString(), startLine);
                 callNode.addNextNode(nextNode);
+                System.out.println(nextNode.getNodeInfo());
             }
 
             // 将 CallNode 添加到 CallGraph
             graph.addNode(callNode);
-
-            // 打印赋值情况
-            System.out.println("Found an assignment expression in class " +
-                    classDeclaration.getNameAsString() + ": " + assignExpr);
-        }
-    }
-
-    private void processDeclarations(ClassOrInterfaceDeclaration classDeclaration) {
-        List<MethodCallExpr> methodCalls = classDeclaration.findAll(MethodCallExpr.class);
-        for (MethodCallExpr methodCall : methodCalls) {
-            String methodName = methodCall.getNameAsString(); // 获取方法名
-            NodeList<Expression> arguments = methodCall.getArguments(); // 获取参数列表
-
-            // 创建 CallNode，表示函数调用
-            CallNode callNode = new CallNode(methodName, classDeclaration.getNameAsString(), -1);
-
-            // 找到函数的原始定义
-            Optional<MethodDeclaration> methodDeclaration = classDeclaration.findFirst(MethodDeclaration.class,
-                    md -> md.getNameAsString().equals(methodName));
-
-            if (methodDeclaration.isPresent()) {
-                MethodDeclaration method = methodDeclaration.get();
-                NodeList<Parameter> parameters = method.getParameters();
-
-                // 将函数的实际参数与函数的原始定义形参关联起来，并创建相应的 CallNode 和 nextNode
-                for (int i = 0; i < arguments.size(); i++) {
-                    if (i < parameters.size()) {
-                        String paramName = parameters.get(i).getNameAsString();
-                        String argName = arguments.get(i).toString();
-
-                        // 创建 CallNode，表示函数的实际参数
-                        CallNode argNode = new CallNode(argName, classDeclaration.getNameAsString(), -1);
-
-                        // 创建 CallNode，表示函数的原始定义形参
-                        CallNode paramNode = new CallNode(paramName, classDeclaration.getNameAsString(), -1);
-
-                        // 将实际参数与形参关联起来，将实际参数作为 nextNode 添加到形参的 nextNodes 列表中
-                        paramNode.addNextNode(argNode);
-
-                        // 添加形参和实际参数到 CallGraph
-                        graph.addNode(paramNode);
-                        graph.addNode(argNode);
-                    }
-                }
-            }
         }
     }
 

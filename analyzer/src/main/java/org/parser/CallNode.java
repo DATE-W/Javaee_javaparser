@@ -3,6 +3,7 @@ package org.parser;
 import java.util.List;
 import java.util.ArrayList;
 
+
 public class CallNode {
     private String name;
     private String parameterClass;
@@ -26,5 +27,9 @@ public class CallNode {
         }
     }
 
+    public String getNodeInfo()
+    {
+        return name + " in " + parameterClass + ":" + Integer.toString(parameterLine);
+    }
 
 }
