@@ -216,9 +216,9 @@ public class MethodInfo {
 
                         // 获取并存储实际传递的参数
                         List<Expression> arguments = methodCall.getArguments();
-                        if (!arguments.isEmpty()) {
+//                        if (!arguments.isEmpty()) {
 //                            System.out.println("调用 " + getMethodName() + " 的参数:");
-                        }
+//                        }
 
                         for (Expression argument : arguments) {
                             // 获取变量名
@@ -226,7 +226,6 @@ public class MethodInfo {
                             // 获取变量的行数
                             Range expressionRange = argument.getRange().orElse(null);
                             int variableStartLine = 0;
-                            String variableClassName = "";
                             if (expressionRange != null) {
                                 variableStartLine = expressionRange.begin.line;
                             }
@@ -237,7 +236,7 @@ public class MethodInfo {
                                 // 获取类名
                                 className = classOrInterface.get().getNameAsString();
                             }
-                            ParameterInfo paraInfo = new ParameterInfo(variableName,variableClassName, variableStartLine);
+                            ParameterInfo paraInfo = new ParameterInfo(variableName, className, variableStartLine);
                             // 把 parameterInfo 传入参数列表
                             parameterInfoList.add(paraInfo);
                         }

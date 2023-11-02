@@ -9,7 +9,8 @@ public class CallNode {
     private String parameterClass;
     private int parameterLine;
 
-    private List<CallNode> nextNodes; // 用于表示下一步连接的节点列表
+    public List<CallNode> nextNodes; // 用于表示下一步连接的节点列表
+    public List<CallNode> prevNodes; // 用于表示下一步连接的节点列表
 
     public CallNode(String name, String parameterClass, int parameterLine) {
         this.name = name;
@@ -21,14 +22,14 @@ public class CallNode {
     public void addNextNode(CallNode nextNode) {
         if (nextNodes == null) {
             nextNodes = new ArrayList<>();
-        }
-        if (!nextNodes.contains(nextNode)) {
-            nextNodes.add(nextNode);
+            if (!nextNodes.contains(nextNode)) {
+                this.nextNodes.add(nextNode);   // 这个的下一个是 nextNode
+            }
         }
     }
 
-    public String getNodeInfo()
-    {
+
+    public String getNodeInfo() {
         return name + " in " + parameterClass + ":" + Integer.toString(parameterLine);
     }
 

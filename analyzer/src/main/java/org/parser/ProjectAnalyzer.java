@@ -22,6 +22,7 @@ import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
 import com.github.javaparser.Range;
 
 import com.github.javaparser.ast.Node;
@@ -37,7 +38,7 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
     // 已配置的JavaParser实例
     public static JavaParser CONFIGURED_PARSER;
 
-    public CallGraph graph;
+    public CallGraph graph = new CallGraph();
 
     // 构造函数，初始化分析器并配置JavaParser
     public ProjectAnalyzer(String packageName) {
@@ -161,7 +162,6 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
     }
 
 
-    // 这里后面要改成ClassInfo版本的
     public void findAllUsedExpr() {
         JavaParser javaParser = CONFIGURED_PARSER;
 
@@ -193,9 +193,39 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
     }
 
 
+    private void processDeclarations(ClassOrInterfaceDeclaration classDeclaration) {
+        // 找到所有的变量声明语句
+        List<VariableDeclarator> declarators = classDeclaration.findAll(VariableDeclarator.class);
+        for (VariableDeclarator declarator : declarators) {
+            // 获取声明的变量名
+            String variableName = declarator.getNameAsString();
+            // 获取声明变量的初始化表达式（如果有）
+            Expression initializationExpr = declarator.getInitializer().orElse(null);
+            // 获取声明语句的源代码范围
+            Range declarationRange = declarator.getRange().orElse(null);
+            // 获取起始行
+            int startLine = 0;
+            if (declarationRange != null) {
+                startLine = declarationRange.begin.line;
+            }
+
+            // 创建 CallNode，将变量名作为节点信息
+            CallNode nextNode = new CallNode(variableName, classDeclaration.getNameAsString(), startLine);
+            // 如果有初始化表达式，将其作为 nextNode 添加到 CallNode
+            if (initializationExpr != null) {
+                CallNode callNode = new CallNode(initializationExpr.toString(), classDeclaration.getNameAsString(), startLine);
+                callNode.addNextNode(nextNode);
+                // 将 CallNode 添加到 CallGraph
+                graph.addNode(callNode);
+                System.out.println(callNode.getNodeInfo() + " -> " + nextNode.getNodeInfo());
+            }
+
+        }
+    }
+
+
     private void processAssignments(ClassOrInterfaceDeclaration classDeclaration) {
         // 处理赋值情况的代码
-        // 先去找赋值的情况
         List<AssignExpr> assignExprs = classDeclaration.findAll(AssignExpr.class);
         for (AssignExpr assignExpr : assignExprs) {
             // 获取赋值前面的内容
@@ -211,16 +241,15 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
 
             // 创建 CallNode，并将赋值前面的内容添加到 CallNode
             CallNode callNode = new CallNode(rightExpr.toString(), classDeclaration.getNameAsString(), startLine);
-            System.out.println(callNode.getNodeInfo() + " -> ");
+
             // 如果赋值后面的内容不为空，将其作为 nextNode 添加到 CallNode
             if (rightExpr != null) {
                 CallNode nextNode = new CallNode(leftExpr.toString(), classDeclaration.getNameAsString(), startLine);
                 callNode.addNextNode(nextNode);
-                System.out.println(nextNode.getNodeInfo());
+                // 将 CallNode 添加到 CallGraph
+                graph.addNode(callNode);
+                System.out.println(callNode.getNodeInfo() + " -> " + nextNode.getNodeInfo());
             }
-
-            // 将 CallNode 添加到 CallGraph
-            graph.addNode(callNode);
         }
     }
 
@@ -232,9 +261,6 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
             String methodName = methodCall.getNameAsString(); // 获取方法名
             NodeList<Expression> arguments = methodCall.getArguments(); // 获取参数列表
 
-            // 创建 CallNode，表示函数调用
-            CallNode callNode = new CallNode(methodName, classDeclaration.getNameAsString(), -1);
-
             // 找到函数的原始定义
             Optional<MethodDeclaration> methodDeclaration = classDeclaration.findFirst(MethodDeclaration.class,
                     md -> md.getNameAsString().equals(methodName));
@@ -242,25 +268,26 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
             if (methodDeclaration.isPresent()) {
                 MethodDeclaration method = methodDeclaration.get();
                 NodeList<Parameter> parameters = method.getParameters();
+                // 得到函数的形参列表
 
-                // 将函数的实际参数与函数的原始定义形参关联起来，并创建相应的 CallNode 和 nextNode
+                // 处理参数，将实际参数与形参关联起来
                 for (int i = 0; i < arguments.size(); i++) {
                     if (i < parameters.size()) {
                         String paramName = parameters.get(i).getNameAsString();
                         String argName = arguments.get(i).toString();
 
+                        // 创建 CallNode，表示函数的形参
+                        CallNode paramNode = new CallNode(paramName, classDeclaration.getNameAsString(), method.getBegin().get().line);
+
                         // 创建 CallNode，表示函数的实际参数
-                        CallNode argNode = new CallNode(argName, classDeclaration.getNameAsString(), -1);
-
-                        // 创建 CallNode，表示函数的原始定义形参
-                        CallNode paramNode = new CallNode(paramName, classDeclaration.getNameAsString(), -1);
-
-                        // 将实际参数与形参关联起来，将实际参数作为 nextNode 添加到形参的 nextNodes 列表中
-                        paramNode.addNextNode(argNode);
+                        CallNode argNode = new CallNode(argName, classDeclaration.getNameAsString(), methodCall.getBegin().get().line);
+                        argNode.addNextNode(paramNode);
 
                         // 添加形参和实际参数到 CallGraph
                         graph.addNode(paramNode);
                         graph.addNode(argNode);
+
+                        System.out.println(argNode.getNodeInfo() + " -> " + paramNode.getNodeInfo());
                     }
                 }
             }
