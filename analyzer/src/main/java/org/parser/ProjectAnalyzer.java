@@ -7,6 +7,7 @@ import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
@@ -20,6 +21,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -227,11 +229,45 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
                         for (MethodCallExpr methodCall : methodCalls) {
                             String methodName = methodCall.getNameAsString(); // 获取方法名
                             NodeList<Expression> arguments = methodCall.getArguments(); // 获取参数列表
-                            // 打印找到的函数调用和参数信息
-                            System.out.println("Found a method call in class " + classDeclaration.getNameAsString() +
-                                    ": Method Name: " + methodName + ", Arguments: " + arguments);
+
+                            // 创建 CallNode，表示函数调用
+                            CallNode callNode = new CallNode(methodName, classDeclaration.getNameAsString(), -1);
+
+                            // 找到函数的原始定义
+                            Optional<MethodDeclaration> methodDeclaration = classDeclaration.findFirst(MethodDeclaration.class,
+                                    md -> md.getNameAsString().equals(methodName));
+
+                            if (methodDeclaration.isPresent()) {
+                                MethodDeclaration method = methodDeclaration.get();
+                                NodeList<Parameter> parameters = method.getParameters();
+
+                                // 将函数的实际参数与函数的原始定义形参关联起来，并创建相应的 CallNode 和 nextNode
+                                for (int i = 0; i < arguments.size(); i++) {
+                                    if (i < parameters.size()) {
+                                        String paramName = parameters.get(i).getNameAsString();
+                                        String argName = arguments.get(i).toString();
+
+                                        // 创建 CallNode，表示函数的实际参数
+                                        CallNode argNode = new CallNode(argName, classDeclaration.getNameAsString(), -1);
+
+                                        // 创建 CallNode，表示函数的原始定义形参
+                                        CallNode paramNode = new CallNode(paramName, classDeclaration.getNameAsString(), -1);
+
+                                        // 将实际参数与形参关联起来，将实际参数作为 nextNode 添加到形参的 nextNodes 列表中
+                                        paramNode.addNextNode(argNode);
+
+                                        // 添加形参和实际参数到 CallGraph
+                                        graph.addNode(paramNode);
+                                        graph.addNode(argNode);
+                                    }
+                                }
+                            }
                         }
-                        // 然后对于函数调用，要去进入它的内部，函数是作为一个中介，也就是nextNode指向函数
+
+
+                        // 其它边界情况 -> 如果右值是函数返回值？
+                        //  -> 如果有 if else 语句？ 如果有 for 语句？
+                        //  -> ...
                     }
 
                 }
