@@ -39,12 +39,13 @@ public class MethodCallAnalyzer {
             String fullClassName = parts[1].trim();
             String depthInfo = parts[2].trim();
 
+
             String[] packageClass = fullClassName.split("\\.");
 
             // 从depthInfo字符串中提取数字
             String[] depthParts = depthInfo.split("=");
             if (packageClass.length == 2 && depthParts.length == 2 && depthParts[0].trim().equalsIgnoreCase("depth")) {
-                packageName = packageClass[0];
+                packageName = packageClass[0];      // 这个也是从输入中获得的
                 className = packageClass[1];
                 depth = Integer.parseInt(depthParts[1].trim());
             } else {
