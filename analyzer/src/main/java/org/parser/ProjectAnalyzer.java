@@ -170,7 +170,10 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
                 // Parse the Java file.
                 CompilationUnit cu = javaParser.parse(javaFile).getResult().orElse(null);
                 if (cu != null) {
-                    // 对所有的类遍历做处理
+                    // 对所有的类遍历做处理，也即这个处理是类级别的；
+                    // javaparser 没有一个获取变量 scope 的功能，这意味这变量的 scope 需要我们自己去找？ 比如在 if 语句中定义变量
+                    // 更正：javaparser 可以通过获取 parent 的类型得到变量的作用域是函数、类、还是条件判断后面的语句 也即AfterConditionalStatement
+                    // 我们是否还需要一个和 scope 有关的数据结构，便于更精确的判断
                     List<ClassOrInterfaceDeclaration> classDeclarations = cu.findAll(ClassOrInterfaceDeclaration.class);
                     for (ClassOrInterfaceDeclaration classDeclaration : classDeclarations) {
                         // 第一种流动情况：声明

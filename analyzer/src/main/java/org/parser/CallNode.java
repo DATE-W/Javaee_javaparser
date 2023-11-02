@@ -9,6 +9,11 @@ public class CallNode {
     private String parameterClass;
     private int parameterLine;
 
+    private int scopeStartLine;
+
+    private int scopeEndLine;
+    private int scopeType;
+
     public List<CallNode> nextNodes; // 用于表示下一步连接的节点列表
     public List<CallNode> prevNodes; // 用于表示下一步连接的节点列表
 
