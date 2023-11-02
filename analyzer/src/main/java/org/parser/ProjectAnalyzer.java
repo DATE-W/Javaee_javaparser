@@ -176,14 +176,23 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
                         // 第一种流动情况：声明
                         processDeclarations(classDeclaration);
                         // 第二种流动情况：赋值
+                        // 赋值的普通情况：右边是普通表达式
                         processAssignments(classDeclaration);
+                        // 赋值的特殊情况：右值是函数的返回值
+                        // 那么这里就要进入函数的 return 语句，继续往上分析
+                        // 这里还没做....(请杰哥做)
                         // 第三种流动情况：函数调用（仅考虑参数调用）
                         processMethodCalls(classDeclaration);
-                        // 其它边界情况 -> 如果右值是函数返回值，也就是涉及到函数返回值，如何操作？
-                        // 如果函数调用是多个参数？
-                        // 如果函数调用的里面是个 BinaryExpr? 比如 name + "hello"？
-                        //  -> 如果有 if else 语句？ 如果有 for 语句？
-                        //  -> 其它更多语法问题...
+                        // 第四种流动情况：函数调用返回值
+                        // 其它边界情况
+                        // 如果有 if else 语句？ 如果有 for 语句？ 如果先name1 = name2，再name2 = name3 ，这不应该允许它汇聚！
+                        // 这意味着我们需要在 callNode 里增加信息，表达它是哪个方法里的，如果它是类变量，那么就是哪个类里的
+                        // 当前没有办法处理类成员变量
+                        // 另一个注意点！！！！！
+                        // 当前，我们对于声明和赋值的右值，都只考虑了右值是一个普通变量(nameExpr)的情形
+                        // 但是，如果是 BinaryExpr，也就是类似于 name1 + name2 + "hello" 如何去做处理呢？
+                        // 首先要从 name1 + name2 + "hello" 来提取变量 -> 这个可以解决 name2 + "hello" 这种情况了
+                        // 可是，如果出现 name1 + name2 图里就会出现汇聚的情况了！这意味着我们回头追溯的时候需要分叉去追溯
                     }
                 }
             } catch (FileNotFoundException e) {
