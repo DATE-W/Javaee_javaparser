@@ -179,6 +179,8 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
                         // 第三种流动情况：函数调用（仅考虑参数调用）
                         processMethodCalls(classDeclaration);
                         // 其它边界情况 -> 如果右值是函数返回值，也就是涉及到函数返回值，如何操作？
+                        // 如果函数调用是多个参数？
+                        // 如果函数调用的里面是个 BinaryExpr? 比如 name + "hello"？
                         //  -> 如果有 if else 语句？ 如果有 for 语句？
                         //  -> 其它更多语法问题...
                     }
