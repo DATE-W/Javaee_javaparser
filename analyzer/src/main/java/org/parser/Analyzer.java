@@ -1,8 +1,9 @@
 package org.parser;
 
 import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.*;
+import javassist.Loader;
 
 import java.util.ArrayList;
 
@@ -47,7 +48,7 @@ public class Analyzer {
             return;
         }
         if (depth > 0) {
-            System.out.print(" ".repeat(depth * 2));
+            Interactor.getInstance().indent(depth * 2);
             System.out.println(current.getInfoString(depth));
         }
         ArrayList<Methods> list = direction ? current.getCallees() : current.getCallers();
@@ -72,11 +73,11 @@ public class Analyzer {
     }
 
     // 找到方法所有调用处的实参
-    public void findArgument(Methods callee, int parameterIndex, int depth) {
+    public void findArgument(Methods callee, int index, int depth) {
         String qualifiedSignature = callee.qualifiedSignature();
         for (Methods caller : callee.getCallers()) { // 遍历调用者
             // 分析调用者的声明
-            for (MethodCallExpr methodCallExpr : caller.findMethodCallExpr()) {
+            for (MethodCallExpr methodCallExpr : caller.findByType(MethodCallExpr.class)) {
                 // 判断调用的是不是自己
 
                 /* 注意：这里在完成 F2 之后需要继续完善 */
@@ -87,13 +88,71 @@ public class Analyzer {
                 }
 
                 // 获取实参并打印
-                Expression argument = methodCallExpr.getArguments().get(parameterIndex); // 根据索引获取实参
+                Expression argument = methodCallExpr.getArguments().get(index); // 根据索引获取实参
                 Interactor.getInstance().indent(depth * 2);
                 Interactor.getInstance().printExpression(argument);
 
-                //
+                // 实参是字面量则结束
+                if (argument.isLiteralExpr()) {
+                    return;
+                }
+
+                // 继续找右值为字面量的赋值语句或声明语句
+                findSource(caller, argument, depth + 1);
             }
         }
+    }
+
+    // 找到实参的来源
+    public void findSource(Methods method, Expression argument, int depth) {
+        // 选择右值为字面量的、出现在实参前的、位置最靠后的语句
+        Expression target = null;
+        int targetLine = 0;
+
+        // 寻找赋值表达式
+        for (AssignExpr assignExpr : method.findByType(AssignExpr.class)) {
+            if (!assignExpr.getValue().isLiteralExpr()) {
+                continue;
+            }
+            int assignExprLine = assignExpr.getRange().get().begin.line;
+            if (assignExprLine > argument.getRange().get().begin.line) {
+                continue;
+            }
+            if (assignExprLine > targetLine) {
+                targetLine = assignExprLine;
+                target = assignExpr;
+            }
+        }
+
+        // 寻找变量声明语句
+        for (VariableDeclarator declarator : method.findByType(VariableDeclarator.class)) {
+            if (!declarator.getInitializer().get().isLiteralExpr()) {
+                continue;
+            }
+            int declaratorLine = declarator.getRange().get().begin.line;
+            if (declaratorLine > argument.getRange().get().begin.line) {
+                continue;
+            }
+            if (declaratorLine > targetLine) {
+                targetLine = declaratorLine;
+                target = declarator.getInitializer().get().asLiteralExpr();
+            }
+        }
+
+        // 输出结果
+        Interactor.getInstance().indent(depth * 2); // 缩进
+        if (target == null) { // 没有符合要求的赋值语句
+            ArrayList<Parameter> parameters = method.getParameters();
+            for (int i = 0; i < parameters.size(); i++) { // 在函数声明中找形参
+                if (parameters.get(i).getNameAsString().equals(argument.toString())) {
+                    Interactor.getInstance().printExpression(parameters.get(i).getName()); // 输出形参信息
+                    findArgument(method, i, depth + 1); // 继续寻找实参
+                    break;
+                }
+            }
+            return;
+        }
+        Interactor.getInstance().printExpression(target);
     }
 
 }

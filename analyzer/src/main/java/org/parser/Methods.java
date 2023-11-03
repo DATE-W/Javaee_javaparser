@@ -1,10 +1,13 @@
 package org.parser;
 
-import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.AssignExpr;
+import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.printer.lexicalpreservation.changes.ListAdditionChange;
+import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 
 import java.util.ArrayList;
 
@@ -64,8 +67,8 @@ public class Methods {
     public ArrayList<Parameter> getParameters() {
         return new ArrayList<>(declaration.getParameters());
     }
-    public ArrayList<MethodCallExpr> findMethodCallExpr() {
-        return new ArrayList<>(declaration.findAll(MethodCallExpr.class));
+    public <T extends Node> ArrayList<T> findByType(Class<T> type) {
+        return new ArrayList<>(declaration.findAll(type));
     }
     public String qualifiedSignature() {
         return declaration.resolve().getQualifiedSignature();

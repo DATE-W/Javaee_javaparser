@@ -1,8 +1,12 @@
 package org.parser;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.SimpleName;
+import com.github.javaparser.ast.nodeTypes.NodeWithRange;
 
 import java.util.Scanner;
 public class Interactor {
@@ -116,7 +120,7 @@ public class Interactor {
         System.out.println(String.format("%s %s: ", parameter.getTypeAsString(), parameter.getNameAsString()));
     }
 
-    public void printExpression(Expression expression) {
+    public <T extends Node> void printExpression(T expression) {
         int line = expression.getRange().get().begin.line; // 获取实参所在函数
         String fileName = expression.findAncestor(CompilationUnit.class).get().getStorage().get().getPath().getFileName().toString();
         System.out.println(String.format("[%s: Line %d of %s]", expression, line, fileName)); // 打印信息
