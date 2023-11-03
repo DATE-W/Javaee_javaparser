@@ -2,11 +2,14 @@ package org.parser;
 
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.expr.ClassExpr;
+import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class MethodInfo {
     private final MethodDeclaration declaration; // 方法声明
@@ -56,6 +59,7 @@ public class MethodInfo {
                 String[] methodCallInfo = qualifiedName.split("\\.");
                 //String methodPackageName = methodCallInfo[0];
                 String methodClassName = methodCallInfo[1];
+                // System.out.println(qualifiedName + " " + this.getClassName() + "." + this.getMethodName());
                 // 获取被调用方法的名称
                 String calledMethodName = methodCall.getNameAsString();
                 // 遍历传入的所有方法信息
