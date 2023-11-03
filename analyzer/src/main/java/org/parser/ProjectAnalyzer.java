@@ -10,23 +10,25 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.type.Type;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import com.github.javaparser.Range;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import com.google.common.collect.HashMultiset;
+import org.checkerframework.checker.units.qual.A;
 
 
 public class ProjectAnalyzer implements Analyzable<ClassInfo> {
@@ -38,7 +40,13 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
     // 已配置的JavaParser实例
     public static JavaParser CONFIGURED_PARSER;
 
-    public CallGraph graph = new CallGraph();
+    //JieChu: 严文昊说CallGraph结构没有用了，所以我就把它注释掉了
+//    public CallGraph graph = new CallGraph();
+
+    //JieChu: 我觉得拿classInfos做成员变量很合理
+    public List<ClassInfo> classInfos=new ArrayList<>();     // 调用 analyze 获取所有类的信息
+    //JieChu: 我觉得拿methodInfos做成员变量很合理
+    public List<MethodInfo> methodInfos = new ArrayList<>();
 
     // 构造函数，初始化分析器并配置JavaParser
     public ProjectAnalyzer(String packageName) {
@@ -60,6 +68,9 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
 
         // 使用新的配置创建JavaParser实例
         CONFIGURED_PARSER = new JavaParser(parserConfig);
+
+        //JieChu: 为classInfos和methodInfos两大成员变量初始化
+        analyze();
     }
 
     // 递归获取目录下的所有Java文件
@@ -84,7 +95,6 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
 
     // 分析项目中的类，并返回类信息列表
     public List<ClassInfo> analyze() {
-        List<ClassInfo> classInfos = new ArrayList<>();
         JavaParser javaParser = CONFIGURED_PARSER;
 
         for (File javaFile : javaFiles) {
@@ -111,23 +121,49 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
             }
         }
 
-        return classInfos;
-    }
-
-    // 分析指定类中的特定方法，并显示其调用的方法和被哪些方法调用
-    public void analyzeSpecificMethod(String methodName, String className, int depth) {
-        List<ClassInfo> classInfos = analyze();     // 调用 analyze 获取所有类的信息
-        List<MethodInfo> methodInfos = new ArrayList<>();
-
+        //classInfos获取了所有类的信息(类中包含的所有方法)，将其添加到methodInfos中
         for (ClassInfo classInfo : classInfos) {
             methodInfos.addAll(classInfo.getMethods());     // 把 classInfos 里的信息加入 methodInfos，把一个列表中的元素加到另一个列表中
         }
+        //调用methodInfo.analyze让每个methodInfos中的方法知道自己被谁调用了+调用了谁
         for (MethodInfo methodInfo : methodInfos) {
             methodInfo.analyze(methodInfos);
         }
 
+        return classInfos;
+    }
+
+
+    public Map.Entry<Boolean, List<Map<String,Type>>> checkFunctionOverload(String methodName, String className)
+    {
+        int reloadFunctionsNum=0;
+        List<Map<String,Type>> paramLists=new ArrayList<>();
+        for (MethodInfo methodInfo : methodInfos){
+            if (methodInfo.getMethodName().equals(methodName) &&
+                    methodInfo.getClassName().equals(className)){
+                reloadFunctionsNum++;
+                paramLists.add(methodInfo.getParamList());
+            }
+        }
+
+        if(reloadFunctionsNum==0){
+            return null;
+        }
+        else if(reloadFunctionsNum==1){
+            return  new AbstractMap.SimpleEntry<>(false, paramLists);
+        }
+        else{
+            return new AbstractMap.SimpleEntry<>(true, paramLists);
+        }
+    }
+
+
+    // 分析指定类中的特定方法，并显示其调用的方法和被哪些方法调用
+    public void analyzeSpecificMethod(String methodName, String className, int depth) {
         for (MethodInfo methodInfo : methodInfos) {
-            if (methodInfo.getMethodName().equals(methodName) && methodInfo.getClassName().equals(className)) {
+            if (methodInfo.getMethodName().equals(methodName) &&
+                    methodInfo.getClassName().equals(className)){// &&
+//                            HashMultiset.create(methodInfo.getParamList().values()).equals(HashMultiset.create(methodInfo.getParamList().values()))) {
                 System.out.println("Input:");
                 System.out.println(methodInfo.getMethodName() + ", " + className + ", depth=" + depth);
                 System.out.println("========");
@@ -190,15 +226,17 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
                     List<ClassOrInterfaceDeclaration> classDeclarations = cu.findAll(ClassOrInterfaceDeclaration.class);
                     for (ClassOrInterfaceDeclaration classDeclaration : classDeclarations) {
                         // 第一种流动情况：声明
-                        processDeclarations(classDeclaration);
+//                        processDeclarations(classDeclaration);
                         // 第二种流动情况：赋值
                         // 赋值的普通情况：右边是普通表达式
-                        processAssignments(classDeclaration);
+//                        processAssignments(classDeclaration);
                         // 赋值的特殊情况：右值是函数的返回值
                         // 那么这里就要进入函数的 return 语句，继续往上分析
                         // 这里还没做....(请杰哥做)
+                        // JieChu: Done.
+//                        processAssignmentsWithMethodCalls(classDeclaration);
                         // 第三种流动情况：函数调用（仅考虑参数调用）
-                        processMethodCalls(classDeclaration);
+//                        processMethodCalls(classDeclaration);
                         // 第四种流动情况：函数调用返回值
                         // 其它边界情况
                         // 如果有 if else 语句？ 如果有 for 语句？ 如果先name1 = name2，再name2 = name3 ，这不应该允许它汇聚！
@@ -218,144 +256,184 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
     }
 
 
-    private void processDeclarations(ClassOrInterfaceDeclaration classDeclaration) {
-        // 找到所有的变量声明语句
-        List<VariableDeclarator> declarators = classDeclaration.findAll(VariableDeclarator.class);
-        for (VariableDeclarator declarator : declarators) {
-            // 获取声明的变量名
-            String variableName = declarator.getNameAsString();
-            // 获取声明变量的初始化表达式（如果有）
-            Expression initializationExpr = declarator.getInitializer().orElse(null);
-            // 获取声明语句的源代码范围
-            Range declarationRange = declarator.getRange().orElse(null);
-            // 获取起始行
-            int startLine = 0;
-            if (declarationRange != null) {
-                startLine = declarationRange.begin.line;
-            }
-
-            // 创建 CallNode，将变量名作为节点信息，即：被声明的变量名+在哪个类里声明了这个变量+声明这个变量在该文件的哪一行
-            CallNode nextNode = new CallNode(variableName, classDeclaration.getNameAsString(), startLine);
-            // 如果有初始化表达式，将其作为 nextNode 添加到 CallNode
-            if (initializationExpr != null) {
-                CallNode callNode = new CallNode(initializationExpr.toString(), classDeclaration.getNameAsString(), startLine);
-                callNode.addNextNode(nextNode);
-                // 将 CallNode 添加到 CallGraph
-                graph.addNode(callNode);
-                System.out.println(callNode.getNodeInfo() + " -> " + nextNode.getNodeInfo());
-            }
-
-        }
-    }
-
-//    private void processConditionExpr(ClassOrInterfaceDeclaration classDeclaration) {
-//        // Find all variable declaration statements
+//    private void processDeclarations(ClassOrInterfaceDeclaration classDeclaration) {
+//        // 找到所有的变量声明语句
 //        List<VariableDeclarator> declarators = classDeclaration.findAll(VariableDeclarator.class);
 //        for (VariableDeclarator declarator : declarators) {
-//            // Get the declared variable name
+//            // 获取声明的变量名
 //            String variableName = declarator.getNameAsString();
-//            // Get the initialization expression of the declared variable (if any)
+//            // 获取声明变量的初始化表达式（如果有）
 //            Expression initializationExpr = declarator.getInitializer().orElse(null);
-//            // Get the source code range of the declaration statement
+//            // 获取声明语句的源代码范围
 //            Range declarationRange = declarator.getRange().orElse(null);
-//            // Get the starting line
+//            // 获取起始行
 //            int startLine = (declarationRange != null) ? declarationRange.begin.line : 0;
 //
-//            // Create a CallNode with the variable name as the node information
+//            // 创建 CallNode，将变量名作为节点信息，即：被声明的变量名+在哪个类里声明了这个变量+声明这个变量在该文件的哪一行
 //            CallNode nextNode = new CallNode(variableName, classDeclaration.getNameAsString(), startLine);
-//            // If there is an initialization expression, use it for the nextNode
-//            if (initializationExpr != null) {
-//                //如果右值是一个条件表达式，则进入该if
-//                if (initializationExpr.isConditionalExpr()) {
-//                    ConditionalExpr conditionalExpr = (ConditionalExpr) initializationExpr;
-//                    // Check the condition of the ternary expression
-//                    ResolvedType resolvedType = conditionalExpr.getCondition().calculateResolvedType();
-//                    boolean conditionIsTrue = conditionalExpr.getCondition().calculateResolvedType().isBoolean() && "true".equals(conditionalExpr.getCondition().toString());
-//                    Expression resultExpr = conditionIsTrue ? conditionalExpr.getThenExpr() : conditionalExpr.getElseExpr();
+//            // 如果有初始化表达式，将其作为 nextNode 添加到 CallNode
+//            if(initializationExpr instanceof MethodCallExpr)
+//            {
+//                // 右边是方法调用，处理这个情况
+//                MethodCallExpr methodCall = (MethodCallExpr) initializationExpr;
+//                Optional<MethodDeclaration> methodDeclaration = findMethodDeclaration(classDeclaration, methodCall);
 //
-//                    CallNode callNode = new CallNode(resultExpr.toString(), classDeclaration.getNameAsString(), startLine);
-//                    callNode.addNextNode(nextNode);
-//                    // Add the CallNode to the CallGraph
-//                    graph.addNode(callNode);
-//                    System.out.println(callNode.getNodeInfo() + " -> " + nextNode.getNodeInfo());
-//                } else {
-//                    // Handle other kinds of initialization expressions
-//                    CallNode callNode = new CallNode(initializationExpr.toString(), classDeclaration.getNameAsString(), startLine);
-//                    callNode.addNextNode(nextNode);
-//                    // Add the CallNode to the CallGraph
-//                    graph.addNode(callNode);
-//                    System.out.println(callNode.getNodeInfo() + " -> " + nextNode.getNodeInfo());
+//                if (methodDeclaration.isPresent()) {
+//                    // 找到方法声明，现在寻找return语句
+//                    methodDeclaration.get().findAll(ReturnStmt.class).forEach(returnStmt -> {
+//                        Expression returnExpr = returnStmt.getExpression().orElse(null);
+//                        // Return语句返回了一个变量
+//                        if (returnExpr instanceof NameExpr) {
+//                            String returnVariableName = ((NameExpr) returnExpr).getNameAsString();
+//
+//                            CallNode callNode = new CallNode(returnVariableName, classDeclaration.getNameAsString(), startLine);
+////                            CallNode nextNode = new CallNode(variableName, classDeclaration.getNameAsString(), startLine);
+//                            callNode.addNextNode(nextNode);
+//                            // 将 CallNode 添加到 CallGraph
+//                            graph.addNode(callNode);
+//
+//                            System.out.println(callNode.getNodeInfo() + " -> " + nextNode.getNodeInfo());
+//                        }
+//                    });
+//                }
+//            }
+//            else if (initializationExpr != null) {
+//                CallNode callNode = new CallNode(initializationExpr.toString(), classDeclaration.getNameAsString(), startLine);
+//                callNode.addNextNode(nextNode);
+//                // 将 CallNode 添加到 CallGraph
+//                graph.addNode(callNode);
+//                System.out.println(callNode.getNodeInfo() + " -> " + nextNode.getNodeInfo());
+//            }
+//        }
+//    }
+//
+//
+//    private void processAssignments(ClassOrInterfaceDeclaration classDeclaration) {
+//        // 处理赋值情况的代码
+//        List<AssignExpr> assignExprs = classDeclaration.findAll(AssignExpr.class);
+//        for (AssignExpr assignExpr : assignExprs) {
+//            // 获取赋值前面的内容
+//            Expression leftExpr = assignExpr.getTarget();
+//            // 获取赋值后面的内容
+//            Expression rightExpr = assignExpr.getValue();
+//            // 获取赋值表达式的源代码范围
+//            Range expressionRange = assignExpr.getRange().orElse(null);
+//            // 获取起始行
+//            int startLine = 0;
+//            if (expressionRange != null)
+//                startLine = expressionRange.begin.line;
+//
+//            // 创建 CallNode，并将赋值前面的内容添加到 CallNode。节点包括：右值的名称/描述+在哪个类里做了赋值+在哪一行做了赋值
+//            CallNode callNode = new CallNode(rightExpr.toString().split("=")[0], classDeclaration.getNameAsString(), startLine);
+//
+//            // 如果赋值后面的内容不为空，将其作为 nextNode 添加到 CallNode
+//            if (rightExpr instanceof MethodCallExpr)
+//            {
+//
+//            }
+//            else if (rightExpr != null) {
+//                CallNode nextNode = new CallNode(leftExpr.toString(), classDeclaration.getNameAsString(), startLine);
+//                callNode.addNextNode(nextNode);
+//                // 将 CallNode 添加到 CallGraph
+//                graph.addNode(callNode);
+//                System.out.println(callNode.getNodeInfo() + " -> " + nextNode.getNodeInfo());
+//            }
+//        }
+//    }
+//
+//    //JieChu: 这个processAssignmentsWithMethodCalls目前只能处理等号右边的函数只返回一个变量的情况，我还没考虑返回的是一个表达式
+//    private void processAssignmentsWithMethodCalls(ClassOrInterfaceDeclaration classDeclaration) {
+//        // 处理赋值语句，特别是右边是方法调用的情况
+//        List<AssignExpr> assignExprs = classDeclaration.findAll(AssignExpr.class);
+//        for (AssignExpr assignExpr : assignExprs) {
+//            // 获取赋值左边和右边的内容
+//            Expression leftExpr = assignExpr.getTarget();
+//            Expression rightExpr = assignExpr.getValue();
+//
+//            // 获取赋值表达式的源代码范围和起始行
+//            Range expressionRange = assignExpr.getRange().orElse(null);
+//            int startLine = (expressionRange != null) ? expressionRange.begin.line : 0;
+//
+//            if (rightExpr instanceof MethodCallExpr) {
+//                // 右边是方法调用，处理这个情况
+//                MethodCallExpr methodCall = (MethodCallExpr) rightExpr;
+//                Optional<MethodDeclaration> methodDeclaration = findMethodDeclaration(classDeclaration, methodCall);
+//
+//                if (methodDeclaration.isPresent()) {
+//                    // 找到方法声明，现在寻找return语句
+//                    methodDeclaration.get().findAll(ReturnStmt.class).forEach(returnStmt -> {
+//                        Expression returnExpr = returnStmt.getExpression().orElse(null);
+//                        // Return语句返回了一个变量
+//                        if (returnExpr instanceof NameExpr) {
+//                            String returnVariableName = ((NameExpr) returnExpr).getNameAsString();
+//
+//                            CallNode callNode = new CallNode(returnVariableName, classDeclaration.getNameAsString(), startLine);
+//                            CallNode nextNode = new CallNode(leftExpr.toString(), classDeclaration.getNameAsString(), startLine);
+//                            callNode.addNextNode(nextNode);
+//                            // 将 CallNode 添加到 CallGraph
+//                            graph.addNode(callNode);
+//
+//                            System.out.println(returnVariableName + " in " + classDeclaration.getNameAsString() + ":" + startLine + " -> " + leftExpr);
+//                        }
+//                    });
 //                }
 //            }
 //        }
 //    }
-
-
-    private void processAssignments(ClassOrInterfaceDeclaration classDeclaration) {
-        // 处理赋值情况的代码
-        List<AssignExpr> assignExprs = classDeclaration.findAll(AssignExpr.class);
-        for (AssignExpr assignExpr : assignExprs) {
-            // 获取赋值前面的内容
-            Expression leftExpr = assignExpr.getTarget();
-            // 获取赋值后面的内容
-            Expression rightExpr = assignExpr.getValue();
-            // 获取赋值表达式的源代码范围
-            Range expressionRange = assignExpr.getRange().orElse(null);
-            // 获取起始行
-            int startLine = 0;
-            if (expressionRange != null)
-                startLine = expressionRange.begin.line;
-
-            // 创建 CallNode，并将赋值前面的内容添加到 CallNode。节点包括：右值的名称/描述+在哪个类里做了赋值+在哪一行做了赋值
-            CallNode callNode = new CallNode(rightExpr.toString().split("=")[0], classDeclaration.getNameAsString(), startLine);
-
-            // 如果赋值后面的内容不为空，将其作为 nextNode 添加到 CallNode
-            if (rightExpr != null) {
-                CallNode nextNode = new CallNode(leftExpr.toString(), classDeclaration.getNameAsString(), startLine);
-                callNode.addNextNode(nextNode);
-                // 将 CallNode 添加到 CallGraph
-                graph.addNode(callNode);
-                System.out.println(callNode.getNodeInfo() + " -> " + nextNode.getNodeInfo());
-            }
-        }
-    }
-
-
-    private void processMethodCalls(ClassOrInterfaceDeclaration classDeclaration) {
-        // 再去找函数调用的情况
-        List<MethodCallExpr> methodCalls = classDeclaration.findAll(MethodCallExpr.class);
-        for (MethodCallExpr methodCall : methodCalls) {
-            String methodName = methodCall.getNameAsString(); // 获取方法名
-            NodeList<Expression> arguments = methodCall.getArguments(); // 获取参数列表
-
-            // 找到函数的原始定义
-            Optional<MethodDeclaration> methodDeclaration = classDeclaration.findFirst(MethodDeclaration.class,
-                    md -> md.getNameAsString().equals(methodName));
-
-            if (methodDeclaration.isPresent()) {
-                MethodDeclaration method = methodDeclaration.get();
-                NodeList<Parameter> parameters = method.getParameters();
-                // 得到函数的形参列表
-
-                // 处理参数，将实际参数与形参关联起来
-                for (int i = 0; i < arguments.size(); i++) {
-                    String paramName = parameters.get(i).getNameAsString();
-                    String argName = arguments.get(i).toString();
-
-                    // 创建 CallNode，表示函数的形参
-                    CallNode paramNode = new CallNode(paramName, classDeclaration.getNameAsString(), method.getBegin().get().line);
-
-                    // 创建 CallNode，表示函数的实际参数
-                    CallNode argNode = new CallNode(argName, classDeclaration.getNameAsString(), methodCall.getBegin().get().line);
-                    argNode.addNextNode(paramNode);
-
-                    // 添加形参和实际参数到 CallGraph
-                    graph.addNode(paramNode);
-                    graph.addNode(argNode);
-
-                    System.out.println(argNode.getNodeInfo() + " -> " + paramNode.getNodeInfo());
-                }
-            }
-        }
-    }
+//
+//    //JieChu: 我用这个findMethodDeclaration来替代
+//    // classDeclaration.findFirst(MethodDeclaration.class,md -> md.getNameAsString().equals(methodName));
+//    //以查到函数定义，是因为我觉得我们应该考虑本类外的函数定义，我怀疑查找类外的函数会有些复杂，所以先放个findMethodDeclaration在这儿。
+//    private Optional<MethodDeclaration> findMethodDeclaration(ClassOrInterfaceDeclaration classDeclaration, MethodCallExpr methodCall) {
+//        // 根据方法调用查找当前类中对应的方法声明
+//        String methodName = methodCall.getNameAsString();
+//        for (MethodDeclaration method : classDeclaration.getMethods()) {
+//            if (method.getNameAsString().equals(methodName)) {
+//                // 参数数量和方法调用的参数数量相同，可以增加更多检查确保它是正确的方法
+//                if (method.getParameters().size() == methodCall.getArguments().size()) {
+//                    return Optional.of(method);
+//                }
+//            }
+//        }
+//        return Optional.empty();
+//    }
+//
+//
+//    private void processMethodCalls(ClassOrInterfaceDeclaration classDeclaration) {
+//        // 再去找函数调用的情况
+//        List<MethodCallExpr> methodCalls = classDeclaration.findAll(MethodCallExpr.class);
+//        for (MethodCallExpr methodCall : methodCalls) {
+//            String methodName = methodCall.getNameAsString(); // 获取方法名
+//            NodeList<Expression> arguments = methodCall.getArguments(); // 获取参数列表
+//
+//            // 找到函数的原始定义
+//            //JieChu: 但是这里只能找到本类中的函数定义啊，假如这里的对函数传参的情况中，函数是其他类的函数呢？
+//            Optional<MethodDeclaration> methodDeclaration = findMethodDeclaration(classDeclaration, methodCall);
+//
+//            if (methodDeclaration.isPresent()) {
+//                MethodDeclaration method = methodDeclaration.get();
+//                NodeList<Parameter> parameters = method.getParameters();
+//                // 得到函数的形参列表
+//
+//                // 处理参数，将实际参数与形参关联起来
+//                for (int i = 0; i < arguments.size(); i++) {
+//                    String paramName = parameters.get(i).getNameAsString();
+//                    String argName = arguments.get(i).toString();
+//
+//                    // 创建 CallNode，表示函数的形参
+//                    CallNode paramNode = new CallNode(paramName, classDeclaration.getNameAsString(), method.getBegin().get().line);
+//
+//                    // 创建 CallNode，表示函数的实际参数
+//                    CallNode argNode = new CallNode(argName, classDeclaration.getNameAsString(), methodCall.getBegin().get().line);
+//                    argNode.addNextNode(paramNode);
+//
+//                    // 添加形参和实际参数到 CallGraph
+//                    graph.addNode(paramNode);
+//                    graph.addNode(argNode);
+//
+//                    System.out.println(argNode.getNodeInfo() + " -> " + paramNode.getNodeInfo());
+//                }
+//            }
+//        }
+//    }
 }

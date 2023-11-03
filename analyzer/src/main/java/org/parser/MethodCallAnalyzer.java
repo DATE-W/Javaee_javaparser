@@ -1,5 +1,9 @@
 package org.parser;
 
+import com.github.javaparser.ast.type.Type;
+
+import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 
 class MethodCallAnalyzer {
@@ -53,6 +57,11 @@ class MethodCallAnalyzer {
 
         // 创建分析器进行分析
         ProjectAnalyzer projectAnalyzer = new ProjectAnalyzer(packageName);
+        Map.Entry<Boolean, List<Map<String,Type>>> functionOverloadChecked = projectAnalyzer.checkFunctionOverload(methodName, className);
+        if(functionOverloadChecked.getKey())
+        {
+
+        }
         projectAnalyzer.analyzeSpecificMethod(methodName, className, depth);
     }
 }

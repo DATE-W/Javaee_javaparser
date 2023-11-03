@@ -49,12 +49,12 @@ public class MethodInfo {
         return declaration.findAncestor(ClassOrInterfaceDeclaration.class).get().getNameAsString();
     }
 
-    public Map<Type,String> getParamList(){
-        Map<Type,String> paramList=new HashMap<>();
+    public Map<String,Type> getParamList(){
+        Map<String,Type> paramList=new HashMap<>();
         for (Parameter parameter : declaration.getParameters()) {
             Type paramType=parameter.getType();
             String paramName= parameter.getNameAsString();
-            paramList.put(paramType,paramName);
+            paramList.put(paramName,paramType);
         }
         return paramList;
     }
