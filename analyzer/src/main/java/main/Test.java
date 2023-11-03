@@ -9,6 +9,8 @@ class Test {
         sayHello(name2);
     }
     public static void main(String[] args) {
+        // ParentClass o = new DerivedClass();
+        // o.work();
         sayHello("Jon");
         String name3 = "Odie";
         introduction(name3);
