@@ -1,5 +1,9 @@
 package org.parser;
 
+import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+
 import java.util.ArrayList;
 
 public class Analyzer {
@@ -53,7 +57,43 @@ public class Analyzer {
     }
     // 分析所有函数的参数来源
     public void analyzeParameter() {
-        // ...
+        for (Methods method : invocations.getAllMethods()) {
+            if (method.isLeaf() || method.isRoot()) { // 跳过系统函数和 main 函数
+                continue;
+            }
+            System.out.println(method.getIdentifier() + ": ");
+            ArrayList<Parameter> parameters = method.getParameters();
+            for (int i = 0; i < parameters.size(); i++) {
+                Interactor.getInstance().indent(2);
+                Interactor.getInstance().printParameter(parameters.get(i));
+                findArgument(method, i, 2);
+            }
+        }
+    }
+
+    // 找到方法所有调用处的实参
+    public void findArgument(Methods callee, int parameterIndex, int depth) {
+        String qualifiedSignature = callee.qualifiedSignature();
+        for (Methods caller : callee.getCallers()) { // 遍历调用者
+            // 分析调用者的声明
+            for (MethodCallExpr methodCallExpr : caller.findMethodCallExpr()) {
+                // 判断调用的是不是自己
+
+                /* 注意：这里在完成 F2 之后需要继续完善 */
+
+                String target = methodCallExpr.resolve().getQualifiedSignature();
+                if (!target.equals(qualifiedSignature)) {
+                    continue;
+                }
+
+                // 获取实参并打印
+                Expression argument = methodCallExpr.getArguments().get(parameterIndex); // 根据索引获取实参
+                Interactor.getInstance().indent(depth * 2);
+                Interactor.getInstance().printExpression(argument);
+
+                //
+            }
+        }
     }
 
 }

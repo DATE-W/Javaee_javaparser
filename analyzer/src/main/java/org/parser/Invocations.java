@@ -2,6 +2,7 @@ package org.parser;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
 
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -36,9 +37,7 @@ public class Invocations {
         }
         return null;
     }
-    public void printAllMethods() {
-        for (String key : table.keySet()) {
-            System.out.println(key);
-        }
+    public ArrayList<Methods> getAllMethods() {
+        return new ArrayList<>(table.values());
     }
 }

@@ -1,6 +1,10 @@
 package org.parser;
 
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.printer.lexicalpreservation.changes.ListAdditionChange;
 
 import java.util.ArrayList;
 
@@ -48,10 +52,22 @@ public class Methods {
     public boolean isLeaf() {
         return declaration == null;
     }
+    public boolean isRoot() {
+        return methodName.equals("main");
+    }
     public ArrayList<Methods> getCallers() {
         return callers;
     }
     public ArrayList<Methods> getCallees() {
         return callees;
+    }
+    public ArrayList<Parameter> getParameters() {
+        return new ArrayList<>(declaration.getParameters());
+    }
+    public ArrayList<MethodCallExpr> findMethodCallExpr() {
+        return new ArrayList<>(declaration.findAll(MethodCallExpr.class));
+    }
+    public String qualifiedSignature() {
+        return declaration.resolve().getQualifiedSignature();
     }
 }

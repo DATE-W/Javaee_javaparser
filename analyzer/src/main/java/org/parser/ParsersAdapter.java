@@ -60,7 +60,7 @@ public class ParsersAdapter {
                 return;
             }
             String packageName = cu.getPackageDeclaration().get().getNameAsString(); // 获取包名
-            for (ClassOrInterfaceDeclaration classDeclaration: cu.findAll(ClassOrInterfaceDeclaration.class)) {
+            for (ClassOrInterfaceDeclaration classDeclaration : cu.findAll(ClassOrInterfaceDeclaration.class)) {
                 parseClass(packageName, classDeclaration, invocations);
             }
         } catch (FileNotFoundException e) {
@@ -81,6 +81,11 @@ public class ParsersAdapter {
             try {
                 String[] calleeInfo = methodCall.resolve().getQualifiedSignature().split("\\."); // 被调用方法信息
                 String calleeName = methodCall.getNameAsString();
+
+                // 获取被调用者的类和包
+
+                /* 注意：这里在完成 F2 之后需要继续完善 */
+
                 String calleeClass = null;
                 String calleePackage = null;
                 for (int i = calleeInfo.length - 1; i >= 2; i--) {
@@ -93,6 +98,7 @@ public class ParsersAdapter {
                 if (calleePackage == null || calleeClass == null) {
                     continue;
                 }
+
                 String callee = String.format("%s.%s.%s", calleePackage, calleeClass, calleeName); // 被调用方法标识符
                 invocations.addNode(calleePackage, calleeClass, calleeName); // 被调用方法加入图中
                 invocations.addEdge(caller, callee); // 建立关系
