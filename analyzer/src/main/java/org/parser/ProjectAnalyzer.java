@@ -234,7 +234,7 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
                 startLine = declarationRange.begin.line;
             }
 
-            // 创建 CallNode，将变量名作为节点信息
+            // 创建 CallNode，将变量名作为节点信息，即：被声明的变量名+在哪个类里声明了这个变量+声明这个变量在该文件的哪一行
             CallNode nextNode = new CallNode(variableName, classDeclaration.getNameAsString(), startLine);
             // 如果有初始化表达式，将其作为 nextNode 添加到 CallNode
             if (initializationExpr != null) {
@@ -247,6 +247,48 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
 
         }
     }
+
+//    private void processConditionExpr(ClassOrInterfaceDeclaration classDeclaration) {
+//        // Find all variable declaration statements
+//        List<VariableDeclarator> declarators = classDeclaration.findAll(VariableDeclarator.class);
+//        for (VariableDeclarator declarator : declarators) {
+//            // Get the declared variable name
+//            String variableName = declarator.getNameAsString();
+//            // Get the initialization expression of the declared variable (if any)
+//            Expression initializationExpr = declarator.getInitializer().orElse(null);
+//            // Get the source code range of the declaration statement
+//            Range declarationRange = declarator.getRange().orElse(null);
+//            // Get the starting line
+//            int startLine = (declarationRange != null) ? declarationRange.begin.line : 0;
+//
+//            // Create a CallNode with the variable name as the node information
+//            CallNode nextNode = new CallNode(variableName, classDeclaration.getNameAsString(), startLine);
+//            // If there is an initialization expression, use it for the nextNode
+//            if (initializationExpr != null) {
+//                //如果右值是一个条件表达式，则进入该if
+//                if (initializationExpr.isConditionalExpr()) {
+//                    ConditionalExpr conditionalExpr = (ConditionalExpr) initializationExpr;
+//                    // Check the condition of the ternary expression
+//                    ResolvedType resolvedType = conditionalExpr.getCondition().calculateResolvedType();
+//                    boolean conditionIsTrue = conditionalExpr.getCondition().calculateResolvedType().isBoolean() && "true".equals(conditionalExpr.getCondition().toString());
+//                    Expression resultExpr = conditionIsTrue ? conditionalExpr.getThenExpr() : conditionalExpr.getElseExpr();
+//
+//                    CallNode callNode = new CallNode(resultExpr.toString(), classDeclaration.getNameAsString(), startLine);
+//                    callNode.addNextNode(nextNode);
+//                    // Add the CallNode to the CallGraph
+//                    graph.addNode(callNode);
+//                    System.out.println(callNode.getNodeInfo() + " -> " + nextNode.getNodeInfo());
+//                } else {
+//                    // Handle other kinds of initialization expressions
+//                    CallNode callNode = new CallNode(initializationExpr.toString(), classDeclaration.getNameAsString(), startLine);
+//                    callNode.addNextNode(nextNode);
+//                    // Add the CallNode to the CallGraph
+//                    graph.addNode(callNode);
+//                    System.out.println(callNode.getNodeInfo() + " -> " + nextNode.getNodeInfo());
+//                }
+//            }
+//        }
+//    }
 
 
     private void processAssignments(ClassOrInterfaceDeclaration classDeclaration) {
@@ -264,8 +306,8 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
             if (expressionRange != null)
                 startLine = expressionRange.begin.line;
 
-            // 创建 CallNode，并将赋值前面的内容添加到 CallNode
-            CallNode callNode = new CallNode(rightExpr.toString(), classDeclaration.getNameAsString(), startLine);
+            // 创建 CallNode，并将赋值前面的内容添加到 CallNode。节点包括：右值的名称/描述+在哪个类里做了赋值+在哪一行做了赋值
+            CallNode callNode = new CallNode(rightExpr.toString().split("=")[0], classDeclaration.getNameAsString(), startLine);
 
             // 如果赋值后面的内容不为空，将其作为 nextNode 添加到 CallNode
             if (rightExpr != null) {
@@ -297,27 +339,23 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
 
                 // 处理参数，将实际参数与形参关联起来
                 for (int i = 0; i < arguments.size(); i++) {
-                    if (i < parameters.size()) {
-                        String paramName = parameters.get(i).getNameAsString();
-                        String argName = arguments.get(i).toString();
+                    String paramName = parameters.get(i).getNameAsString();
+                    String argName = arguments.get(i).toString();
 
-                        // 创建 CallNode，表示函数的形参
-                        CallNode paramNode = new CallNode(paramName, classDeclaration.getNameAsString(), method.getBegin().get().line);
+                    // 创建 CallNode，表示函数的形参
+                    CallNode paramNode = new CallNode(paramName, classDeclaration.getNameAsString(), method.getBegin().get().line);
 
-                        // 创建 CallNode，表示函数的实际参数
-                        CallNode argNode = new CallNode(argName, classDeclaration.getNameAsString(), methodCall.getBegin().get().line);
-                        argNode.addNextNode(paramNode);
+                    // 创建 CallNode，表示函数的实际参数
+                    CallNode argNode = new CallNode(argName, classDeclaration.getNameAsString(), methodCall.getBegin().get().line);
+                    argNode.addNextNode(paramNode);
 
-                        // 添加形参和实际参数到 CallGraph
-                        graph.addNode(paramNode);
-                        graph.addNode(argNode);
+                    // 添加形参和实际参数到 CallGraph
+                    graph.addNode(paramNode);
+                    graph.addNode(argNode);
 
-                        System.out.println(argNode.getNodeInfo() + " -> " + paramNode.getNodeInfo());
-                    }
+                    System.out.println(argNode.getNodeInfo() + " -> " + paramNode.getNodeInfo());
                 }
             }
         }
     }
-
-
 }
