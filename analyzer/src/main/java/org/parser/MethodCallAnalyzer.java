@@ -61,8 +61,7 @@ class MethodCallAnalyzer {
         //JieChu: 判断用户输入的方法是否存在重载
         Map.Entry<Boolean, List<MethodInfo>> functionOverloadChecked = projectAnalyzer.checkFunctionOverload(methodName, className);
         //存在重载
-//        if(functionOverloadChecked.getKey())
-        if(true)
+        if(functionOverloadChecked.getKey())
         {
             List<MethodInfo> reloadMethods=functionOverloadChecked.getValue();
             printReloadMethodParams(reloadMethods);
