@@ -6,8 +6,6 @@ import java.util.*;
 import java.util.stream.IntStream;
 
 class MethodCallAnalyzer {
-
-
     public static void main(String[] args) {
         System.out.println("请依次输入方法名、所属类、查找深度（格式如：introduction, main.Test, 2）："); // 输出提示信息
         String userInput = GlobalVariables.getScanner().nextLine(); // 从 scanner 中获取用户输入字符串
@@ -83,6 +81,7 @@ class MethodCallAnalyzer {
         projectAnalyzer.analyzeSpecificMethod(userInput.methodName, userInput.className, userInput.depth, chosenReloadMethodParams);
     }
 
+
     private void printReloadMethodParams(List<MethodInfo> reloadMethodInfo) {
         IntStream.range(0, reloadMethodInfo.size()).forEach(i -> {
             MethodInfo methodInfo=reloadMethodInfo.get(i);
@@ -111,12 +110,5 @@ class MethodCallAnalyzer {
                 }
             }
         }
-    }
-}
-
-//自定义输入格式异常
-class UserInputException extends Exception {
-    public UserInputException(String message) {
-        super(message);
     }
 }
