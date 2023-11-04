@@ -8,11 +8,14 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeS
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 
 import java.io.File;
+import java.util.Scanner;
 
+//单例模式
 public class GlobalVariables {
     private static GlobalVariables instance;
     private static String projectPath;
     public static com.github.javaparser.JavaParser CONFIGURED_PARSER;
+    private static Scanner scanner;
 
     //将构造函数声明为私有的，是为了不让外界调用构造函数
     private GlobalVariables() {
@@ -39,5 +42,13 @@ public class GlobalVariables {
             CONFIGURED_PARSER = new JavaParser(parserConfig);
         }
         return CONFIGURED_PARSER;
+    }
+
+    public static Scanner getScanner()
+    {
+        if(scanner==null) {
+            scanner = new Scanner(System.in);
+        }
+        return scanner;
     }
 }
