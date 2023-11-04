@@ -58,7 +58,7 @@ class MethodCallAnalyzer {
 
 
     //自定义记录
-    public record userInputFormat(String methodName, String packageName, String className, int depth) {}
+    private record userInputFormat(String methodName, String packageName, String className, int depth) {}
 
     private void analyzeMethodCall(userInputFormat userInput) {
         // 创建分析器进行分析
