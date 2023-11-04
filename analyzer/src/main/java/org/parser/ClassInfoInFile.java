@@ -9,16 +9,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public class ClassInfo implements Analyzable<MethodInfo> {
+public class ClassInfoInFile implements Analyzable<MethodInfo> {
 
     private final CompilationUnit unit;
     private final List<MethodInfo> methods;
 
-    public ClassInfo(CompilationUnit unit) {
+    public ClassInfoInFile(CompilationUnit unit) {
         this.unit = unit;
         this.methods = new ArrayList<>();
     }
 
+    //JieChu: 这里的analyze方法分析的是一个CompilationUnit类型的java文件，而非一个ClassOrInterfaceDeclaration类型的类
     public List<MethodInfo> analyze() {
         // 获取CompilationUnit中所有的类和接口声明
         List<ClassOrInterfaceDeclaration> classDeclarations = unit.findAll(ClassOrInterfaceDeclaration.class);

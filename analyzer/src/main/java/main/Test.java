@@ -8,6 +8,13 @@ class Test {
         String name2 = "Garfield";
         sayHello(name2);
     }
+
+    static void introduction(String name1,String StuNumber) {
+        sayHello(name1);
+        String name2 = "Garfield";
+        String StuNumber2=StuNumber;
+        sayHello(name2);
+    }
     public static void main(String[] args) {
         sayHello("Jon");
         String name3 = "Odie";

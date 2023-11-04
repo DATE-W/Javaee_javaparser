@@ -31,20 +31,18 @@ import com.google.common.collect.HashMultiset;
 import org.checkerframework.checker.units.qual.A;
 
 
-public class ProjectAnalyzer implements Analyzable<ClassInfo> {
+public class ProjectAnalyzer implements Analyzable<ClassInfoInFile> {
     // 存储项目中的Java文件列表
     private final List<File> javaFiles;
     // 项目的包名
     private String packageName;
 
-    // 已配置的JavaParser实例
-    public static JavaParser CONFIGURED_PARSER;
 
     //JieChu: 严文昊说CallGraph结构没有用了，所以我就把它注释掉了
 //    public CallGraph graph = new CallGraph();
 
     //JieChu: 我觉得拿classInfos做成员变量很合理
-    public List<ClassInfo> classInfos=new ArrayList<>();     // 调用 analyze 获取所有类的信息
+    public List<ClassInfoInFile> classInfos=new ArrayList<>();     // 调用 analyze 获取所有类的信息
     //JieChu: 我觉得拿methodInfos做成员变量很合理
     public List<MethodInfo> methodInfos = new ArrayList<>();
 
@@ -52,22 +50,8 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
     public ProjectAnalyzer(String packageName) {
         this.packageName = packageName;
         // 获取包目录下的所有Java文件
-        File directory = new File("src/main/java/" + packageName);
+        File directory = new File(GlobalVariables.getProjectPath() + packageName);
         this.javaFiles = getJavaFiles(directory);
-
-        // 配置符号解析器，用于解析Java代码中的符号
-        CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
-        combinedTypeSolver.add(new ReflectionTypeSolver());
-        combinedTypeSolver.add(new JavaParserTypeSolver(new File("src/main/java/")));
-        JavaSymbolSolver symbolSolver = new JavaSymbolSolver(combinedTypeSolver);
-
-        // 创建一个新的ParserConfiguration对象
-        ParserConfiguration parserConfig = new ParserConfiguration();
-        // 配置符号解析器
-        parserConfig.setSymbolResolver(symbolSolver);
-
-        // 使用新的配置创建JavaParser实例
-        CONFIGURED_PARSER = new JavaParser(parserConfig);
 
         //JieChu: 为classInfos和methodInfos两大成员变量初始化
         analyze();
@@ -94,27 +78,23 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
     }
 
     // 分析项目中的类，并返回类信息列表
-    public List<ClassInfo> analyze() {
-        JavaParser javaParser = CONFIGURED_PARSER;
+    public List<ClassInfoInFile> analyze() {
+        JavaParser javaParser = GlobalVariables.getJavaParser();
 
         for (File javaFile : javaFiles) {
             try {
-                // 解析Java文件
+                // 解析Java文件，一个cu代表一个java文件
                 CompilationUnit cu = javaParser.parse(javaFile).getResult().orElse(null);
                 if (cu != null) {
-                    // 获取文件中的所有类声明
-                    List<ClassOrInterfaceDeclaration> classDeclarations = cu.findAll(ClassOrInterfaceDeclaration.class);
-                    for (ClassOrInterfaceDeclaration classDeclaration : classDeclarations) {
-                        // 创建类信息对象并分析
-                        ClassInfo classInfo = new ClassInfo(cu);
-                        /*
-                        JieChu: 事实上，ClassInfo.analyze()方法是根据传进去的cu来分析一个类中所有的MethodInfo,
-                        并将这些MethodInfo存入ClassInfo.methods。
-                        事实上，ClassInfo的主要作用就是储存一个类的所有MethodInfo
-                         */
-                        classInfo.analyze();
-                        classInfos.add(classInfo);
-                    }
+                    // 创建类信息对象并分析
+                    ClassInfoInFile classInfoInFile = new ClassInfoInFile(cu);
+                    /*
+                    JieChu: 事实上，ClassInfoInFile.analyze()方法是根据传进去的cu来分析一个类中所有的MethodInfo,
+                    并将这些MethodInfo存入ClassInfo.methods。
+                    事实上，ClassInfoInFile的主要作用就是储存一个类的所有MethodInfo
+                     */
+                    classInfoInFile.analyze();
+                    classInfos.add(classInfoInFile);
                 }
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
@@ -122,7 +102,7 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
         }
 
         //classInfos获取了所有类的信息(类中包含的所有方法)，将其添加到methodInfos中
-        for (ClassInfo classInfo : classInfos) {
+        for (ClassInfoInFile classInfo : classInfos) {
             methodInfos.addAll(classInfo.getMethods());     // 把 classInfos 里的信息加入 methodInfos，把一个列表中的元素加到另一个列表中
         }
         //调用methodInfo.analyze让每个methodInfos中的方法知道自己被谁调用了+调用了谁
@@ -132,6 +112,7 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
 
         return classInfos;
     }
+
 
 
     public Map.Entry<Boolean, List<MethodInfo>> checkFunctionOverload(String methodName, String className)
@@ -159,11 +140,16 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
 
 
     // 分析指定类中的特定方法，并显示其调用的方法和被哪些方法调用
-    public void analyzeSpecificMethod(String methodName, String className, int depth) {
+    //假如传入analyzeSpecificMethod的参数chosenReloadMethodParams是null，则说明没有方法重载
+    public void analyzeSpecificMethod(String methodName, String className, int depth, Map<String,Type> chosenReloadMethodParams) {
         for (MethodInfo methodInfo : methodInfos) {
-            if (methodInfo.getMethodName().equals(methodName) &&
-                    methodInfo.getClassName().equals(className)){// &&
-//                            HashMultiset.create(methodInfo.getParamList().values()).equals(HashMultiset.create(methodInfo.getParamList().values()))) {
+            if (methodInfo.getMethodName().equals(methodName) && methodInfo.getClassName().equals(className)){
+                //chosenReloadMethodParams!=null，说明有方法重载。
+                //有方法重载，则判断目前遍历到的方法的参数列表是否就是要找的方法，若不是，则continue
+                if(chosenReloadMethodParams!=null &&
+                        !HashMultiset.create(methodInfo.getParamList().values()).equals(HashMultiset.create(chosenReloadMethodParams.values()))){
+                    continue;
+                }
                 System.out.println("Input:");
                 System.out.println(methodInfo.getMethodName() + ", " + className + ", depth=" + depth);
                 System.out.println("========");
@@ -189,10 +175,10 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
 
     //这个methodTracingAnalyze用来统一统计目标项目中所有方法被哪些方法调用+调用哪些方法+被调用时传入的参数名/参数所属类?/该方法在哪被调用
     public void methodTracingAnalyze() {
-        List<ClassInfo> classInfos = analyze();     // 调用 analyze 获取所有类的信息
+        List<ClassInfoInFile> classInfos = analyze();     // 调用 analyze 获取所有类的信息
         List<MethodInfo> methodInfos=new ArrayList<>();
 
-        for (ClassInfo classInfo:classInfos){
+        for (ClassInfoInFile classInfo:classInfos){
             methodInfos.addAll(classInfo.getMethods());
         }
         for(MethodInfo methodInfo:methodInfos){
@@ -200,7 +186,7 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
             methodInfo.analyze(methodInfos);
         }
 
-        for (ClassInfo classInfo : classInfos) {
+        for (ClassInfoInFile classInfo : classInfos) {
 //            System.out.println("分析的类" + classInfo.getClassName());
             for (MethodInfo methodInfo : methodInfos) {
 //                System.out.println("分析的函数" + methodInfo.getMethodName());
@@ -212,7 +198,7 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
 
 
     public void findAllUsedExpr() {
-        JavaParser javaParser = CONFIGURED_PARSER;
+        JavaParser javaParser = GlobalVariables.getJavaParser();;
 
         for (File javaFile : javaFiles) {
             try {

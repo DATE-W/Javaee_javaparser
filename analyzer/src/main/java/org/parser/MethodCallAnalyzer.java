@@ -2,6 +2,7 @@ package org.parser;
 
 import com.github.javaparser.ast.type.Type;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -9,6 +10,7 @@ import java.util.stream.IntStream;
 
 class MethodCallAnalyzer {
     private static final Scanner scanner = new Scanner(System.in);
+
     public static void main(String[] args) {
         System.out.println("请输入方法信息（格式如：introduction, main.Test, depth=2）："); // 输出提示信息
         String userInput = scanner.nextLine(); // 从 scanner 中获取用户输入字符串
@@ -58,19 +60,26 @@ class MethodCallAnalyzer {
 
         // 创建分析器进行分析
         ProjectAnalyzer projectAnalyzer = new ProjectAnalyzer(packageName);
+
         //JieChu: 判断用户输入的方法是否存在重载
         Map.Entry<Boolean, List<MethodInfo>> functionOverloadChecked = projectAnalyzer.checkFunctionOverload(methodName, className);
+        //若有方法重载，则用户选择一个重载的方法，此被选择的方法的参数列表存在变量chosenReloadMethodParams中
+        Map<String,Type> chosenReloadMethodParams=null;
         //存在重载
         if(functionOverloadChecked.getKey())
         {
             List<MethodInfo> reloadMethods=functionOverloadChecked.getValue();
             printReloadMethodParams(reloadMethods);
+
             int choice = getReloadMethodChoice(reloadMethods.size());
             MethodInfo chosenMethod=reloadMethods.get(choice);
             methodName=chosenMethod.getMethodName();
             className=chosenMethod.getClassName();
+            chosenReloadMethodParams=chosenMethod.getParamList();
         }
-        projectAnalyzer.analyzeSpecificMethod(methodName, className, depth);
+
+        //假如没有方法重载，则程序不会提示用户选择重载的方法的参数列表，且传入下面方法的chosenReloadMethodParams参数也会为null
+        projectAnalyzer.analyzeSpecificMethod(methodName, className, depth, chosenReloadMethodParams);
     }
 
     private void printReloadMethodParams(List<MethodInfo> reloadMethodInfo) {

@@ -1,5 +1,7 @@
 package org.parser;
 
+import com.github.javaparser.JavaParser;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
@@ -9,6 +11,8 @@ import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.Range;
+import com.github.javaparser.resolution.types.ResolvedType;
+import com.google.common.collect.HashMultiset;
 
 import java.util.*;
 
@@ -79,7 +83,9 @@ public class MethodInfo {
 
                 // 遍历传入的所有方法信息
                 for (MethodInfo methodInfo : allMethods) {
-                    if (methodInfo.getMethodName().equals(calledMethodName) && methodInfo.getClassName().equals(methodClassName)) {
+                    if (methodInfo.getMethodName().equals(calledMethodName) &&//方法名称相同
+                            methodInfo.getClassName().equals(methodClassName) &&//方法所属类相同
+                            checkMethodDeclareExprParamEqual(methodInfo.declaration,methodCall)){//方法参数列表相同
                         this.addCalledMethod(methodInfo);
                         methodInfo.addMethodCallingThis(this);
                     }
@@ -91,6 +97,42 @@ public class MethodInfo {
             }
         }
 
+    }
+
+    private Boolean checkMethodDeclareExprParamEqual(MethodDeclaration methodDeclaration, MethodCallExpr methodCallExpr)
+    {
+        // 获取方法声明的参数列表
+        NodeList<Parameter> methodParameters = methodDeclaration.getParameters();
+
+        // 获取方法调用的参数表达式列表
+        NodeList<Expression> callArguments = methodCallExpr.getArguments();
+
+        // 比较参数数量是否相等
+        if (methodParameters.size() != callArguments.size()) {
+            return false;
+        }
+        else {
+            for (int i = 0; i < methodParameters.size(); i++) {
+                Parameter declParam = methodParameters.get(i);
+                Expression callArg = callArguments.get(i);
+
+                try {
+                    // 获取声明参数的解析类型
+                    ResolvedType declParamType = declParam.getType().resolve();
+
+                    // 获取调用参数的解析类型
+                    ResolvedType callArgType = callArg.calculateResolvedType();
+
+                    // 比较类型是否相等
+                    if (!declParamType.equals(callArgType)) {
+                        return false;
+                    }
+                } catch (Exception e) {
+                    System.out.println("Warning! 类型解析出错: " + e.getMessage());
+                }
+            }
+        }
+        return true;
     }
 
 
