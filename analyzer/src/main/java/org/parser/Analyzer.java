@@ -1,5 +1,6 @@
 package org.parser;
 
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
@@ -112,89 +113,75 @@ public class Analyzer {
         }
     }
 
-    private void findLastAssignmentsWithTargetInIfs(Statement statement, String targetVariableName, List<AssignExpr> lastAssignments) {
+    private void findLastAssignmentsAndDeclarationsWithTargetInIfs(Statement statement, String targetVariableName, List<Node> lastAssignmentsAndDeclarations) {
         if (statement instanceof IfStmt) {
             IfStmt ifStmt = (IfStmt) statement;
-
             // 对 then 子句递归搜索
-            findLastAssignmentsWithTargetInIfs(ifStmt.getThenStmt(), targetVariableName, lastAssignments);
-
+            findLastAssignmentsAndDeclarationsWithTargetInIfs(ifStmt.getThenStmt(), targetVariableName, lastAssignmentsAndDeclarations);
             // 对 else 子句递归搜索（如果有的话）
-            ifStmt.getElseStmt().ifPresent(elseStmt -> findLastAssignmentsWithTargetInIfs(elseStmt, targetVariableName, lastAssignments));
+            ifStmt.getElseStmt().ifPresent(elseStmt -> findLastAssignmentsAndDeclarationsWithTargetInIfs(elseStmt, targetVariableName, lastAssignmentsAndDeclarations));
         } else if (statement.isBlockStmt()) {
             // 对块语句中的每一条语句递归搜索
-            statement.asBlockStmt().getStatements().forEach(childStmt -> findLastAssignmentsWithTargetInIfs(childStmt, targetVariableName, lastAssignments));
+            statement.asBlockStmt().getStatements().forEach(childStmt -> findLastAssignmentsAndDeclarationsWithTargetInIfs(childStmt, targetVariableName, lastAssignmentsAndDeclarations));
         } else {
-            // 非 if 语句块，寻找其中的最后一个赋值表达式，且右值为targetVariableName
-            Optional<AssignExpr> lastAssignExpr = statement.findAll(AssignExpr.class).stream()
-                    .filter(assignExpr -> assignExpr.getValue().toString().equals(targetVariableName)) // 过滤出右值为targetVariableName的赋值表达式
+            // 非 if 语句块，寻找其中的最后一个赋值表达式或变量定义，且右值为targetVariableName
+            Optional<Node> lastAssignmentOrDeclaration = statement.findAll(Node.class).stream()
+                    .filter(node ->
+                            (node instanceof AssignExpr && ((AssignExpr) node).getValue().toString().equals(targetVariableName)) ||
+                                    (node instanceof VariableDeclarationExpr && ((VariableDeclarationExpr) node).getVariables().stream().anyMatch(var -> var.getInitializer().isPresent() && var.getInitializer().get().toString().equals(targetVariableName)))
+                    )
                     .reduce((first, second) -> second); // 取最后一个
-            lastAssignExpr.ifPresent(lastAssignments::add);
+            lastAssignmentOrDeclaration.ifPresent(lastAssignmentsAndDeclarations::add);
         }
     }
 
     // 找到实参的来源
     public void findSource(Methods method, Expression variable, int depth) {
-        // 出现在实参前的、位置最靠后的语句
-        Expression targetExpr = null;
-        int targetLine = 0;
-        Expression nextVariable = null;         // 下一步要去找的目标变量
-        // 赋值语句的目标行和目标语句
-        int assignTargetLine = 0;
-        Expression assignTarget = null;
-        Expression nextAssignVariable = null;
-        // 变量声明的目标行和目标语句
-        int declaratorTargetLine = 0;
-        Expression declaratorTarget = null;
-        Expression nextDeclaratorVariable = null;
+        int lastLine = -1; // 用于记录最后的行号
+        Expression lastExpression = null; // 用于记录最后的表达式
 
+        // 获取所有的赋值表达式和变量声明
+        List<Node> assignmentsAndDeclarations = new ArrayList<>();
+        assignmentsAndDeclarations.addAll(method.findByType(AssignExpr.class));
+        assignmentsAndDeclarations.addAll(method.findByType(VariableDeclarator.class));
 
-        // 寻找赋值表达式，在所有右值不是常量的赋值语句里找最后一条
-        for (AssignExpr assignExpr : method.findByType(AssignExpr.class)) {
-            int assignExprLine = assignExpr.getRange().get().begin.line;
-            // 判断变量名
-            if (!(assignExpr.getTarget().asNameExpr().getNameAsString().equals(variable.toString())))
-                continue;
-            // 遇到在后面的就不管
-            if (assignExprLine > variable.getRange().get().begin.line) {
-                continue;
-            }
-            // 找到最下面一行的赋值语句
-            if (assignExprLine > assignTargetLine) {
-                assignTargetLine = assignExprLine;
-                nextAssignVariable = assignExpr.getValue();
-            }
-        }
+        for (Node node : assignmentsAndDeclarations) {
+            if (node instanceof AssignExpr) {
+                AssignExpr assignExpr = (AssignExpr) node;
+                int assignExprLine = assignExpr.getRange().get().begin.line;
+                // 判断变量名和行号条件
+                if (assignExpr.getTarget().isNameExpr() &&
+                        assignExpr.getTarget().asNameExpr().getNameAsString().equals(variable.toString()) &&
+                        assignExprLine <= variable.getRange().get().begin.line &&
+                        assignExprLine > lastLine) {
 
-        // 寻找变量声明语句
-        for (VariableDeclarator declarator : method.findByType(VariableDeclarator.class)) {
-            int declaratorLine = declarator.getRange().get().begin.line;
-            // 判断变量名
-            if (!(declarator.getNameAsString().equals(variable.toString())))
-                continue;
-            // 遇到在后面的就不管
-            if (declaratorLine > variable.getRange().get().begin.line) {
-                continue;
-            }
-            // 找到最下面一行的变量声明语句
-            if (declaratorLine > declaratorTargetLine) {
-                declaratorTargetLine = declaratorLine;
-                nextDeclaratorVariable = declarator.getInitializer().get();
+                    lastLine = assignExprLine;
+                    lastExpression = assignExpr.getValue();
+                }
+            } else if (node instanceof VariableDeclarator) {
+                VariableDeclarator declarator = (VariableDeclarator) node;
+                int declaratorLine = declarator.getRange().get().begin.line;
+                // 判断变量名和行号条件
+                if (declarator.getNameAsString().equals(variable.toString()) &&
+                        declaratorLine <= variable.getRange().get().begin.line &&
+                        declaratorLine > lastLine &&
+                        declarator.getInitializer().isPresent()) {
+
+                    lastLine = declaratorLine;
+                    lastExpression = declarator.getInitializer().get();
+                }
             }
         }
-
-        // 选取这两个中，最下面的那行
-        nextVariable = (declaratorTargetLine > assignTargetLine) ? nextDeclaratorVariable : nextAssignVariable;
 
         // 输出结果
         Interactor.getInstance().indent(depth * 2); // 缩进
 
         // 不空则考虑下一步
-        if (nextVariable != null) {
+        if (lastExpression != null) {
             // 如果是个普通变量，就继续跳
-            if (nextVariable.isNameExpr()) {
-                Interactor.getInstance().printExpression(nextVariable);
-                findSource(method, nextVariable, depth + 1);
+            if (lastExpression.isNameExpr()) {
+                Interactor.getInstance().printExpression(lastExpression);
+                findSource(method, lastExpression, depth + 1);
                 return;
             }
         } else { // 如果没有符合要求的声明/赋值语句，就去寻找形参
@@ -210,7 +197,7 @@ public class Analyzer {
         }
 
         // 打印 target
-        Interactor.getInstance().printExpression(nextVariable);
+        Interactor.getInstance().printExpression(lastExpression);
     }
 }
 
