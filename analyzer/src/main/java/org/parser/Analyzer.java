@@ -1,6 +1,7 @@
 package org.parser;
 
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
@@ -113,7 +114,17 @@ public class Analyzer {
         }
     }
 
+    // 调用这个方法来处理整个方法的语句
+    public void processMethodStatements(MethodDeclaration method, String targetVariableName) {
+        List<Node> lastAssignmentsAndDeclarations = new ArrayList<>();
+        for (Statement statement : method.getBody().get().getStatements()) {
+            findLastAssignmentsAndDeclarationsWithTargetInIfs(statement, targetVariableName, lastAssignmentsAndDeclarations);
+        }
+        // 此时，lastAssignmentsAndDeclarations包含所有的最后赋值和声明
+    }
+
     private void findLastAssignmentsAndDeclarationsWithTargetInIfs(Statement statement, String targetVariableName, List<Node> lastAssignmentsAndDeclarations) {
+        // 如果是if语句，递归处理then和else部分
         if (statement instanceof IfStmt) {
             IfStmt ifStmt = (IfStmt) statement;
             // 对 then 子句递归搜索
@@ -124,16 +135,24 @@ public class Analyzer {
             // 对块语句中的每一条语句递归搜索
             statement.asBlockStmt().getStatements().forEach(childStmt -> findLastAssignmentsAndDeclarationsWithTargetInIfs(childStmt, targetVariableName, lastAssignmentsAndDeclarations));
         } else {
-            // 非 if 语句块，寻找其中的最后一个赋值表达式或变量定义，且右值为targetVariableName
-            Optional<Node> lastAssignmentOrDeclaration = statement.findAll(Node.class).stream()
-                    .filter(node ->
-                            (node instanceof AssignExpr && ((AssignExpr) node).getValue().toString().equals(targetVariableName)) ||
-                                    (node instanceof VariableDeclarationExpr && ((VariableDeclarationExpr) node).getVariables().stream().anyMatch(var -> var.getInitializer().isPresent() && var.getInitializer().get().toString().equals(targetVariableName)))
-                    )
-                    .reduce((first, second) -> second); // 取最后一个
-            lastAssignmentOrDeclaration.ifPresent(lastAssignmentsAndDeclarations::add);
+            // 对当前语句查找赋值或声明
+            findLastAssignmentOrDeclaration(statement, targetVariableName, lastAssignmentsAndDeclarations);
         }
     }
+
+    private void findLastAssignmentOrDeclaration(Statement statement, String targetVariableName, List<Node> lastAssignmentsAndDeclarations) {
+        // 这里使用stream来找到最后的赋值或声明
+        Optional<Node> lastAssignmentOrDeclaration = statement.findAll(Node.class).stream()
+                .filter(node ->
+                        (node instanceof AssignExpr && ((AssignExpr) node).getTarget().isNameExpr() &&
+                                ((AssignExpr) node).getTarget().asNameExpr().getNameAsString().equals(targetVariableName)) ||
+                                (node instanceof VariableDeclarator &&
+                                        ((VariableDeclarator) node).getNameAsString().equals(targetVariableName) &&
+                                        ((VariableDeclarator) node).getInitializer().isPresent()))
+                .reduce((first, second) -> second); // 取最后一个
+        lastAssignmentOrDeclaration.ifPresent(lastAssignmentsAndDeclarations::add);
+    }
+
 
     // 找到实参的来源
     public void findSource(Methods method, Expression variable, int depth) {
