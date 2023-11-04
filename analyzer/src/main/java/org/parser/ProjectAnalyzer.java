@@ -101,6 +101,9 @@ public class ProjectAnalyzer implements Analyzable<ClassInfoInFile> {
             }
         }
 
+        /*
+        下面的3个for循环初始化被解析项目中所有method的信息
+         */
         //classInfos获取了所有类的信息(类中包含的所有方法)，将其添加到methodInfos中
         for (ClassInfoInFile classInfo : classInfos) {
             methodInfos.addAll(classInfo.getMethods());     // 把 classInfos 里的信息加入 methodInfos，把一个列表中的元素加到另一个列表中
@@ -108,6 +111,11 @@ public class ProjectAnalyzer implements Analyzable<ClassInfoInFile> {
         //调用methodInfo.analyze让每个methodInfos中的方法知道自己被谁调用了+调用了谁
         for (MethodInfo methodInfo : methodInfos) {
             methodInfo.analyze(methodInfos);
+        }
+        //MethodInfo的getInvokedParameters方法是用来得到当该MethodInfo被调用时的所有参数来源(参数名+所属类+)的
+        //MethodInfo.getInvokedParameters要发挥作用必须得到MethodInfo.methodCallingThis字段被完全初始化，也就是上面的methodInfo.analyze(methodInfos);被调用
+        for (MethodInfo methodInfo : methodInfos) {
+            methodInfo.getInvokedParameters();
         }
 
         return classInfos;
@@ -172,29 +180,6 @@ public class ProjectAnalyzer implements Analyzable<ClassInfoInFile> {
         }
     }
     // 查看被调用的方法
-
-    //这个methodTracingAnalyze用来统一统计目标项目中所有方法被哪些方法调用+调用哪些方法+被调用时传入的参数名/参数所属类?/该方法在哪被调用
-    public void methodTracingAnalyze() {
-        List<ClassInfoInFile> classInfos = analyze();     // 调用 analyze 获取所有类的信息
-        List<MethodInfo> methodInfos=new ArrayList<>();
-
-        for (ClassInfoInFile classInfo:classInfos){
-            methodInfos.addAll(classInfo.getMethods());
-        }
-        for(MethodInfo methodInfo:methodInfos){
-            //这一句调用analyze找到每个method有哪些方法调用了它+被哪些方法调用
-            methodInfo.analyze(methodInfos);
-        }
-
-        for (ClassInfoInFile classInfo : classInfos) {
-//            System.out.println("分析的类" + classInfo.getClassName());
-            for (MethodInfo methodInfo : methodInfos) {
-//                System.out.println("分析的函数" + methodInfo.getMethodName());
-                methodInfo.getInvokedParameters();
-//                System.out.println("\n");
-            }
-        }
-    }
 
 
     public void findAllUsedExpr() {

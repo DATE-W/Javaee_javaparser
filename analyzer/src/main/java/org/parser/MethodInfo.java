@@ -96,7 +96,6 @@ public class MethodInfo {
                 System.out.println("无法解析方法调用: " + methodCall);
             }
         }
-
     }
 
     private Boolean checkMethodDeclareExprParamEqual(MethodDeclaration methodDeclaration, MethodCallExpr methodCallExpr)
@@ -258,53 +257,58 @@ public class MethodInfo {
     }
 
 
-    // 找到某个方法获得的参数
+    // 找到某个方法在整个项目中任何被调用处获得的实参表达式的“字符串形式”+所处的类+所处的行
+    //但是这个getInvokedParameters方法要达到目的，就必须让被解析项目中的所有方法对应的MethodInfo对象的methodsCallingThis字段都得到了完全初始化。
+    //完全初始化被解析项目中的methodsCallingThis要需要以下语句：
+    //for (MethodInfo methodInfo : methodInfos) {
+    //    methodInfo.analyze(methodInfos);
+    //}
+    //其中methodInfos是整个被解析项目中所有的方法
     public void getInvokedParameters() {
         // 遍历所有调用此方法的方法
+        List<MethodCallExpr> methodCalls=new ArrayList<>();
         for (MethodInfo method : methodsCallingThis) {
             // 从每个方法中找到所有的方法调用表达式
-            List<MethodCallExpr> methodCalls = method.declaration.findAll(MethodCallExpr.class);
-            // 遍历找到的方法调用表达式
-            for (MethodCallExpr methodCall : methodCalls) {
-                try {
-                    // 检查这个方法调用表达式是否是对当前方法的调用
-                    ResolvedMethodDeclaration resolvedMethod = methodCall.resolve();
-                    if (resolvedMethod.getQualifiedSignature().equals(this.declaration.resolve().getQualifiedSignature())) {
-                        List<ParameterInfo> parameterInfoList = new ArrayList<>();
+            methodCalls.addAll(method.declaration.findAll(MethodCallExpr.class));
+        }
+        // 遍历找到的方法调用表达式
+        for (MethodCallExpr methodCall : methodCalls) {
+            try {
+                // 检查这个方法调用表达式是否是对当前方法的调用
+                ResolvedMethodDeclaration resolvedMethod = methodCall.resolve();
+                if (resolvedMethod.getQualifiedSignature().equals(this.declaration.resolve().getQualifiedSignature())) {
+                    List<ParameterInfo> parameterInfoList = new ArrayList<>();
 
-                        // 获取并存储实际传递的参数
-                        List<Expression> arguments = methodCall.getArguments();
-//                        if (!arguments.isEmpty()) {
-//                            System.out.println("调用 " + getMethodName() + " 的参数:");
-//                        }
+                    // 获取并存储实际传递的参数
+                    List<Expression> arguments = methodCall.getArguments();
 
-                        for (Expression argument : arguments) {
-                            // 获取变量名
-                            String variableName = argument.toString();
-                            // 获取变量的行数
-                            Range expressionRange = argument.getRange().orElse(null);
-                            int variableStartLine = 0;
-                            if (expressionRange != null) {
-                                variableStartLine = expressionRange.begin.line;
-                            }
-                            // 获取变量的类名
-                            String className = "";
-                            Optional<ClassOrInterfaceDeclaration> classOrInterface = argument.findAncestor(ClassOrInterfaceDeclaration.class);
-                            if (classOrInterface.isPresent()) {
-                                // 获取类名
-                                className = classOrInterface.get().getNameAsString();
-                            }
-                            ParameterInfo paraInfo = new ParameterInfo(variableName, className, variableStartLine);
-                            // 把 parameterInfo 传入参数列表
-                            parameterInfoList.add(paraInfo);
-                        }
-
-                        this.invokedParameters.add(parameterInfoList);
+                    // 获取实参表达式时位于哪一个类中，即当前方法是在哪一个类中被调用的
+                    //由于arguments中的实参表达式肯定是位于同一个类中，所以只需要用arguments.get(0)获取一次className就行了
+                    String className = "";
+                    Optional<ClassOrInterfaceDeclaration> classOrInterface = arguments.get(0).findAncestor(ClassOrInterfaceDeclaration.class);
+                    if (classOrInterface.isPresent()) {
+                        // 获取类名
+                        className = classOrInterface.get().getNameAsString();
                     }
-                } catch (Exception e) {
-                    System.out.println(e);
-                    System.out.println("无法解析方法调用: " + methodCall);
+
+                    //获取每一个实参表达式的字符串形式，以及该实参表达式位于哪一行
+                    for (Expression argument : arguments) {
+                        // 获取变量名
+                        String variableName = argument.toString();
+                        // 获取变量的行数
+                        Range expressionRange = argument.getRange().orElse(null);
+                        int variableStartLine=(expressionRange != null)?expressionRange.begin.line:0;
+
+                        ParameterInfo paraInfo = new ParameterInfo(variableName, className, variableStartLine);
+                        // 把 parameterInfo 传入参数列表
+                        parameterInfoList.add(paraInfo);
+                    }
+
+                    this.invokedParameters.add(parameterInfoList);
                 }
+            } catch (Exception e) {
+                System.out.println(e);
+                System.out.println("无法解析方法调用: " + methodCall);
             }
         }
     }

@@ -14,10 +14,6 @@ public class MethodSourceAnalyzer {
 
         // 处理用户的输入
         ProjectAnalyzer projectAnalyzer = new ProjectAnalyzer("main");
-
-        // 调用 ProjectAnalyzer 来分析一个函数被调用的
-        projectAnalyzer.methodTracingAnalyze();
-
         projectAnalyzer.findAllUsedExpr();
     }
 }
