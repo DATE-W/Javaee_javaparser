@@ -134,15 +134,15 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
     }
 
 
-    public Map.Entry<Boolean, List<Map<String,Type>>> checkFunctionOverload(String methodName, String className)
+    public Map.Entry<Boolean, List<MethodInfo>> checkFunctionOverload(String methodName, String className)
     {
         int reloadFunctionsNum=0;
-        List<Map<String,Type>> paramLists=new ArrayList<>();
+        List<MethodInfo> reloadMethods=new ArrayList<>();
         for (MethodInfo methodInfo : methodInfos){
             if (methodInfo.getMethodName().equals(methodName) &&
                     methodInfo.getClassName().equals(className)){
                 reloadFunctionsNum++;
-                paramLists.add(methodInfo.getParamList());
+                reloadMethods.add(methodInfo);
             }
         }
 
@@ -150,10 +150,10 @@ public class ProjectAnalyzer implements Analyzable<ClassInfo> {
             return null;
         }
         else if(reloadFunctionsNum==1){
-            return  new AbstractMap.SimpleEntry<>(false, paramLists);
+            return  new AbstractMap.SimpleEntry<>(false, reloadMethods);
         }
         else{
-            return new AbstractMap.SimpleEntry<>(true, paramLists);
+            return new AbstractMap.SimpleEntry<>(true, reloadMethods);
         }
     }
 
