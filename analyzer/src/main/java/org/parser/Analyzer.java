@@ -118,6 +118,7 @@ public class Analyzer {
         }
     }
 
+
     // 对于一个代码块，去用findLastAssignmentOrDeclaration函数递归的查找
     private void findLastAssignmentsAndDeclarationsWithTargetInIfs(List<Statement> statements, String targetVariableName, List<Node> lastAssignmentsAndDeclarations) {
         for (Statement statement : statements) {
@@ -184,7 +185,6 @@ public class Analyzer {
         lastAssignmentOrDeclaration.ifPresent(lastAssignmentsAndDeclarations::add);
     }
 
-
     // 找到实参的来源
     public void findSource(Methods method, Expression variable, int depth) {
         int lastLine = -1; // 用于记录最后的行号
@@ -217,6 +217,7 @@ public class Analyzer {
             return;
         } else {
             // 如果没有符合要求的声明/赋值语句，就去寻找形参
+
             ArrayList<Parameter> parameters = method.getParameters();
             for (int i = 0; i < parameters.size(); i++) { // 在函数声明中找形参
                 if (parameters.get(i).getNameAsString().equals(variable.toString())) {
