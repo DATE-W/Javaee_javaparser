@@ -137,7 +137,7 @@ public class Analyzer {
                 }
                 // 如果有 else 语句，就对 else 子句进行处理
                 if (ifStmt.getElseStmt().isPresent()) {
-                    System.out.println("ok");
+//                    System.out.println("ok");
                     Statement elseStmt = ifStmt.getElseStmt().get();
                     // 提取里面的 else 语句，进行递归
                     if (elseStmt.isBlockStmt()) {   // 如果 else 后面是代码块
@@ -207,27 +207,26 @@ public class Analyzer {
             for (Expression lastExpression : lastExpressions)   // 这里面都是不为空的
             {
                 if (lastExpression.isNameExpr()) {      // 是变量，继续查找
+                    Interactor.getInstance().indent(depth * 2);
                     Interactor.getInstance().printExpression(lastExpression);
                     findSource(method, lastExpression, depth + 1);
                 } else if (lastExpression.isLiteralExpr()) {  // 是字面量，停止查找
+                    Interactor.getInstance().indent(depth * 2);
                     Interactor.getInstance().printExpression(lastExpression);
                 }
             }
-            Interactor.getInstance().indent(depth * 2); // 缩进
-            return;
         } else {
             // 如果没有符合要求的声明/赋值语句，就去寻找形参
 
             ArrayList<Parameter> parameters = method.getParameters();
             for (int i = 0; i < parameters.size(); i++) { // 在函数声明中找形参
                 if (parameters.get(i).getNameAsString().equals(variable.toString())) {
+                    Interactor.getInstance().indent(depth * 2);
                     Interactor.getInstance().printExpression(parameters.get(i).getName()); // 输出形参信息
                     findArgument(method, i, depth + 1); // 继续寻找实参
                     break;
                 }
             }
-            Interactor.getInstance().indent(depth * 2); // 缩进
-            return;
         }
     }
 }
