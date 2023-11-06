@@ -73,4 +73,8 @@ public class Methods {
     public String qualifiedSignature() {
         return declaration.resolve().getQualifiedSignature();
     }
+
+    public MethodDeclaration getDeclaration() {
+        return declaration;
+    }
 }
