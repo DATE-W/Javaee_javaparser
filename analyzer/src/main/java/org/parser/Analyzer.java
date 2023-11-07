@@ -15,7 +15,6 @@ public class Analyzer {
     private static Analyzer instance; // 分析器实例
     private ParsersAdapter adapter; // 适配器
     private Invocations invocations; // 关系图
-    Set<Methods> overloadedMethods;
 
     // 构造函数
     private Analyzer() {
@@ -55,7 +54,7 @@ public class Analyzer {
         // 查找所有候选方法
         ArrayList<Methods> overload = findFunctionOverload(packageName, className, methodName);
         if (overload.isEmpty()) {
-            System.out.println("方法不存在");
+            Interactor.getInstance().methodNotFount();
             return;
         }
 
@@ -70,10 +69,12 @@ public class Analyzer {
         }
 
         // 开始分析
-        System.out.println("It is invoked by the following: ");
+        Interactor.getInstance().invoked();
         searchInvocation(target, false, 0, depth); // 反向 DFS
-        System.out.println("It invokes the following: ");
+        Interactor.getInstance().printWithIndent(0, "");
+        Interactor.getInstance().invokes();
         searchInvocation(target, true, 0, depth); // 正向 DFS
+        Interactor.getInstance().printWithIndent(0, "");
     }
 
     // 深度优先搜索
@@ -82,8 +83,7 @@ public class Analyzer {
             return;
         }
         if (depth > 0) {
-            Interactor.getInstance().indent(depth * 2);
-            System.out.println(current.getInfoString(depth));
+            Interactor.getInstance().printWithIndent(depth * 2, current.getInfoString(depth));
         }
         ArrayList<Methods> list = direction ? current.getCallees() : current.getCallers();
         for (Methods next : list) {
@@ -97,10 +97,9 @@ public class Analyzer {
             if (method.isLeaf() || method.isRoot()) { // 跳过系统函数和 main 函数
                 continue;
             }
-            System.out.println(method.getIdentifier() + ": ");
+            Interactor.getInstance().printWithIndent(0, method.getIdentifier() + ": ");
             ArrayList<Parameter> parameters = method.getParameters();
             for (int i = 0; i < parameters.size(); i++) {
-                Interactor.getInstance().indent(2);
                 Interactor.getInstance().printParameter(parameters.get(i));
                 findArgument(method, i, 2);
             }
@@ -124,8 +123,7 @@ public class Analyzer {
 
                 // 获取实参并打印
                 Expression argument = methodCallExpr.getArguments().get(index); // 根据索引获取实参
-                Interactor.getInstance().indent(depth * 2);
-                Interactor.getInstance().printExpression(argument);
+                Interactor.getInstance().printExpression(depth, argument);
 
                 // 实参是字面量则结束
                 if (argument.isLiteralExpr()) {
@@ -225,12 +223,10 @@ public class Analyzer {
             for (Expression lastExpression : lastExpressions)   // 这里面都是不为空的
             {
                 if (lastExpression.isNameExpr()) {      // 是变量，继续查找
-                    Interactor.getInstance().indent(depth * 2);
-                    Interactor.getInstance().printExpression(lastExpression);
+                    Interactor.getInstance().printExpression(depth, lastExpression);
                     findSource(method, lastExpression, depth + 1);
                 } else if (lastExpression.isLiteralExpr()) {  // 是字面量，停止查找
-                    Interactor.getInstance().indent(depth * 2);
-                    Interactor.getInstance().printExpression(lastExpression);
+                    Interactor.getInstance().printExpression(depth, lastExpression);
                 }
             }
         } else {
@@ -238,8 +234,7 @@ public class Analyzer {
             ArrayList<Parameter> parameters = method.getParameters();
             for (int i = 0; i < parameters.size(); i++) { // 在函数声明中找形参
                 if (parameters.get(i).getNameAsString().equals(variable.toString())) {
-                    Interactor.getInstance().indent(depth * 2);
-                    Interactor.getInstance().printExpression(parameters.get(i).getName()); // 输出形参信息
+                    Interactor.getInstance().printExpression(depth, parameters.get(i).getName()); // 输出形参信息
                     findArgument(method, i, depth + 1); // 继续寻找实参
                     break;
                 }
