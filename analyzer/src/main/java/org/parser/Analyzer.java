@@ -34,7 +34,7 @@ public class Analyzer {
     // 扫描项目目录
     public void parseDirectory() {
         adapter.analyzeAllFiles(invocations); // 分析所有文件并将结果存入图中
-        // invocations.printAllMethods(); 输出所有方法结点
+        Interactor.getInstance().showStatistics(adapter.countClasses(), invocations.getAllMethods().size());
     }
 
     // 寻找指定方法的所有重载

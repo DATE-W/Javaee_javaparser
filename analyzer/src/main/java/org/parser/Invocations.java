@@ -2,9 +2,7 @@ package org.parser;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
 
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.*;
 
 public class Invocations {
     private Map<String, Methods> table;
@@ -15,7 +13,6 @@ public class Invocations {
         Methods node = new Methods(packageName, className, declaration);
         if (!table.containsKey(node.getIdentifier())) {
             table.put(node.getIdentifier(), node);
-            System.out.println(node.getIdentifier());
         }
     }
     public void addNode(String packageName, String className, String methodName, ArrayList<String> typeList) {

@@ -130,4 +130,7 @@ public class Interactor {
         System.out.println("输入无效");
         return -1;
     }
+    public void showStatistics(int classesCount, int methodCount) {
+        System.out.println(String.format("--- 分析完成，共扫描到 %d 个类和 %d 个方法 ^_^ ---", classesCount, methodCount));
+    }
 }

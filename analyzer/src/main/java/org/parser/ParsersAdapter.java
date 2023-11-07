@@ -3,11 +3,8 @@ package org.parser;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
@@ -22,12 +19,14 @@ import java.util.Queue;
 
 public class ParsersAdapter {
     public static JavaParser CONFIGURED_PARSER; // 配置好的 JavaParser 对象
-    String path; // 项目路径
+    private String path; // 项目路径
+    private int classesCount;
 
     // 构造函数
     public ParsersAdapter(String path) {
         configure(path); // 配置 CONFIGURED_PARSER
         this.path = path; // 设置项目路径
+        this.classesCount = 0; // 记录类的数量
     }
 
     // 配置 JavaParser
@@ -88,6 +87,7 @@ public class ParsersAdapter {
             String packageName = cu.getPackageDeclaration().get().getNameAsString(); // 获取包名
             for (ClassOrInterfaceDeclaration classDeclaration : cu.findAll(ClassOrInterfaceDeclaration.class)) { // 遍历所有类
                 String className = classDeclaration.getNameAsString(); // 获取类名
+                classesCount++;
                 for (MethodDeclaration methodDeclaration : classDeclaration.getMethods()) { // 遍历所有方法
                     invocations.addNode(packageName, className, methodDeclaration); // 添加方法结点
                 }
@@ -145,6 +145,7 @@ public class ParsersAdapter {
                                     calleeParamsList.add(paramType);
                                 }
                             }
+
                             invocations.addNode(calleePackage, calleeClass, calleeName,calleeParamsList); // 若不存在则加入图中
                             Methods callee = invocations.findMethod(Methods.constructIdentifier(calleePackage, calleeClass, calleeName, calleeParamsList)); // 找到被调用函数
                             invocations.addEdge(caller, callee); // 建立关系
@@ -158,5 +159,9 @@ public class ParsersAdapter {
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
+    }
+
+    public int countClasses() {
+        return classesCount;
     }
 }
