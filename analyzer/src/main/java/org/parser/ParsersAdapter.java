@@ -5,20 +5,28 @@ import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
+import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
+import com.github.javaparser.symbolsolver.javaparsermodel.JavaParserFacade;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.*;
 
 public class ParsersAdapter {
     public static JavaParser CONFIGURED_PARSER; // 配置好的 JavaParser 对象
+    public static JavaParserFacade FACADE;
+    private static HashMap<String, ResolvedReferenceTypeDeclaration> referenceTypeMap;
     private String path; // 项目路径
     private int classesCount;
 
@@ -34,6 +42,9 @@ public class ParsersAdapter {
         CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
         combinedTypeSolver.add(new ReflectionTypeSolver());
         combinedTypeSolver.add(new JavaParserTypeSolver(new File(path)));
+        // 用类型解析器创建一个JavaParserFacade实例，它提供解析的高级接口
+        FACADE = JavaParserFacade.get(combinedTypeSolver);
+
         JavaSymbolSolver symbolSolver = new JavaSymbolSolver(combinedTypeSolver);
         ParserConfiguration parserConfig = new ParserConfiguration();
         parserConfig.setSymbolResolver(symbolSolver);
@@ -95,6 +106,63 @@ public class ParsersAdapter {
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
+    }
+
+    private void recordClassInstantiation(CompilationUnit cu)
+    {
+        // 收集所有的对象创建表达式（例如 new SomeClass()），以确定变量实际引用的类型
+        cu.findAll(ObjectCreationExpr.class).forEach(objCreation -> {
+            // 获取对象创建表达式的类型
+            ResolvedType resolvedType = FACADE.convertToUsage(objCreation.getType(), objCreation);
+            // 如果类型是引用类型，获取其声明
+            if (resolvedType.isReferenceType()) {
+                ResolvedReferenceTypeDeclaration typeDeclaration = resolvedType.asReferenceType().getTypeDeclaration().get();
+                // 尝试找到变量声明节点的祖先节点
+                objCreation.findAncestor(VariableDeclarator.class).ifPresent(varDecl -> {
+                    // 将变量名和类型声明放入映射中
+                    referenceTypeMap.put(varDecl.getNameAsString(), typeDeclaration);
+                });
+            }
+        });
+    }
+
+    private String resolvePolymorphicFunctionCalls(MethodCallExpr methodCall) {
+        // 获取方法调用的作用域，如变量名或者this
+        Optional<Expression> optScope = methodCall.getScope();
+        if (optScope.isPresent()) {
+            // 如果作用域是变量名
+            Expression scope = optScope.get();
+            if (scope instanceof NameExpr) {
+                // 获取变量名
+                String name = ((NameExpr) scope).getNameAsString();
+                // 从映射中获取变量对应的实际类型
+                ResolvedReferenceTypeDeclaration actualType = referenceTypeMap.get(name);
+                // 如果能找到实际类型
+                if (actualType != null) {
+                    try {
+                        // 解析方法调用的声明
+                        ResolvedMethodDeclaration method = FACADE.solve(methodCall).getCorrespondingDeclaration();
+                        // 在实际类型中查找对应的方法
+                        Optional<ResolvedMethodDeclaration> actualMethod = actualType.getDeclaredMethods().stream()
+                                .filter(m -> m.getName().equals(method.getName()))
+                                .findFirst();
+
+                        // 如果找到，返回方法调用和声明的详细信息
+                        if (actualMethod.isPresent()) {
+                            return actualMethod.get().getQualifiedSignature();
+                        } else {
+                            return method.getQualifiedSignature();
+                        }
+                    } catch (Exception e) {
+                        // 解析出现异常，返回错误信息
+                        System.out.println("Resolution error: " + e.getMessage());
+                        return "Resolution error: " + e.getMessage();
+                    }
+                }
+            }
+        }
+        // 如果作用域不存在或其他任何情况，需要返回一个默认值或者错误
+        return "Unable to resolve the method call.";
     }
 
     // 分析文件中的所有调用语句
