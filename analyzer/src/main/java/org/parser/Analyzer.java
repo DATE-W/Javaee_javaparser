@@ -1,7 +1,6 @@
 package org.parser;
 
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
@@ -10,17 +9,13 @@ import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.stmt.WhileStmt;
 import com.github.javaparser.ast.stmt.ForStmt;
 import com.github.javaparser.ast.stmt.Statement;
-import javassist.Loader;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class Analyzer {
     private static Analyzer instance; // 分析器实例
     private ParsersAdapter adapter; // 适配器
     private Invocations invocations; // 关系图
+    Set<Methods> overloadedMethods;
 
     // 构造函数
     private Analyzer() {
@@ -42,14 +37,39 @@ public class Analyzer {
         // invocations.printAllMethods(); 输出所有方法结点
     }
 
+    // 寻找指定方法的所有重载
+    private ArrayList<Methods> findFunctionOverload(String packageName, String className, String methodName) {
+        ArrayList<Methods> ret = new ArrayList<>();
+        for (Methods method : invocations.getAllMethods()) {
+            if (method.getMethodName().equals(methodName) &&
+                    method.getClassName().equals(className) &&
+                    method.getPackageName().equals(packageName)) {
+                ret.add(method);
+            }
+        }
+        return ret;
+    }
+
     // 分析方法调用关系
     public void analyzeInvocations(String packageName, String className, String methodName, int depth) {
-        String identifier = String.format("%s.%s.%s", packageName, className, methodName); // 目标方法的标识符
-        Methods target = invocations.findMethod(identifier); // 找到目标方法结点
-        if (target == null) {
+        // 查找所有候选方法
+        ArrayList<Methods> overload = findFunctionOverload(packageName, className, methodName);
+        if (overload.isEmpty()) {
             System.out.println("方法不存在");
             return;
         }
+
+        // 选择目标方法
+        Methods target = overload.get(0); // 目标方法
+        if (overload.size() > 1) { // 拥有多个重载
+            int selection = Interactor.getInstance().chooseOverloadedMethods(overload); // 用户选择重载
+            if (selection == -1) { // 用户输入参数错误
+                return;
+            }
+            target = overload.get(selection); // 获取用户所选方法
+        }
+
+        // 开始分析
         System.out.println("It is invoked by the following: ");
         searchInvocation(target, false, 0, depth); // 反向 DFS
         System.out.println("It invokes the following: ");
@@ -88,7 +108,7 @@ public class Analyzer {
     }
 
     // 找到方法所有调用处的实参
-    public void findArgument(Methods callee, int index, int depth) {    // index 表示第几个实参
+    public void findArgument(Methods callee, int index, int depth) { // index 表示第几个实参
         String qualifiedSignature = callee.qualifiedSignature();
         for (Methods caller : callee.getCallers()) { // 遍历调用者
             // 分析调用者的声明
@@ -187,8 +207,6 @@ public class Analyzer {
 
     // 找到实参的来源
     public void findSource(Methods method, Expression variable, int depth) {
-        int lastLine = -1; // 用于记录最后的行号
-
         List<Node> lastAssignmentsAndDeclarations = new ArrayList<>();
         List<Expression> lastExpressions = new ArrayList<>();
         findLastAssignmentsAndDeclarationsWithTargetInIfs(method.getDeclaration().getBody().get().getStatements(), variable.toString(), lastAssignmentsAndDeclarations);
@@ -217,7 +235,6 @@ public class Analyzer {
             }
         } else {
             // 如果没有符合要求的声明/赋值语句，就去寻找形参
-
             ArrayList<Parameter> parameters = method.getParameters();
             for (int i = 0; i < parameters.size(); i++) { // 在函数声明中找形参
                 if (parameters.get(i).getNameAsString().equals(variable.toString())) {

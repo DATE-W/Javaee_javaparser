@@ -15,10 +15,11 @@ public class Invocations {
         Methods node = new Methods(packageName, className, declaration);
         if (!table.containsKey(node.getIdentifier())) {
             table.put(node.getIdentifier(), node);
+            System.out.println(node.getIdentifier());
         }
     }
-    public void addNode(String packageName, String className, String methodName) {
-        Methods node = new Methods(packageName, className, methodName);
+    public void addNode(String packageName, String className, String methodName, ArrayList<String> typeList) {
+        Methods node = new Methods(packageName, className, methodName, typeList);
         if (!table.containsKey(node.getIdentifier())) {
             table.put(node.getIdentifier(), node);
         }

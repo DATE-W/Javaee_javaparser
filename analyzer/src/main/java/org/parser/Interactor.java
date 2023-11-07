@@ -3,11 +3,8 @@ package org.parser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.NameExpr;
-import com.github.javaparser.ast.expr.SimpleName;
-import com.github.javaparser.ast.nodeTypes.NodeWithRange;
 
+import java.util.ArrayList;
 import java.util.Scanner;
 public class Interactor {
     // 主函数
@@ -54,7 +51,7 @@ public class Interactor {
         return 0;
     }
     public void invocationAnalysis() {
-        System.out.println("请输入方法信息（格式如：introduction, main.Test, depth=2）："); // 输出提示信息
+        System.out.println("请依次输入方法名、所属类、查找深度（格式如：introduction, main.Test, 2）："); // 输出提示信息
         // 读取用户输入并去除空白符
         String userInput = scanner.nextLine().replaceAll("\\s","");
 
@@ -70,7 +67,7 @@ public class Interactor {
 
         // 提取包名和类名
         String[] packageAndClass = parts[1].split("\\.");
-        if (packageAndClass.length != 2) {
+        if (packageAndClass.length < 2) {
             System.out.println("参数 2 格式错误");
             return;
         }
@@ -79,17 +76,10 @@ public class Interactor {
         String packageName = packageAndClass[0];
         String className = packageAndClass[1];
 
-        // 提取深度信息
-        String[] depthInfo = parts[2].split("=");
-        if (depthInfo.length != 2 || !depthInfo[0].equalsIgnoreCase("depth")) {
-            System.out.println("参数 3 格式错误");
-            return;
-        }
-
         // 获取深度值
         int depth;
         try {
-            depth = Integer.parseInt(depthInfo[1]);
+            depth = Integer.parseInt(parts[2]);
         } catch (NumberFormatException e) {
             System.out.println("参数 3 格式错误");
             return;
@@ -115,14 +105,29 @@ public class Interactor {
         }
         System.out.print(" ".repeat(spaces));
     }
-
     public void printParameter(Parameter parameter) {
         System.out.println(String.format("%s %s: ", parameter.getTypeAsString(), parameter.getNameAsString()));
     }
-
     public <T extends Node> void printExpression(T expression) {
         int line = expression.getRange().get().begin.line; // 获取实参所在函数
         String fileName = expression.findAncestor(CompilationUnit.class).get().getStorage().get().getPath().getFileName().toString();
         System.out.println(String.format("[%s: Line %d of %s]", expression, line, fileName)); // 打印信息
+    }
+    public int chooseOverloadedMethods(ArrayList<Methods> overload) {
+        System.out.println(String.format("请选择一个重载方法（0-%d）：", overload.size() - 1));
+        for (int i = 0; i < overload.size(); ++i) {
+            Methods method = overload.get(i);
+            System.out.println(String.format("方法 %d: %s", i, method.getDeclaration().getDeclarationAsString()));
+        }
+        if (scanner.hasNextInt()) {
+            int choice = Integer.parseInt(scanner.nextLine());
+            if (choice >= 0 && choice < overload.size()) {
+                return choice;
+            }
+        } else {
+            scanner.nextLine();
+        }
+        System.out.println("输入无效");
+        return -1;
     }
 }
