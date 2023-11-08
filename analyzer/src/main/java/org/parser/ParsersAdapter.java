@@ -43,6 +43,7 @@ public class ParsersAdapter {
         CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
         combinedTypeSolver.add(new ReflectionTypeSolver());
         combinedTypeSolver.add(new JavaParserTypeSolver(new File(path)));
+
         // 递归查找指定目录下的所有 .jar 文件并添加到类型解析器中
         File m2Repository = new File("C:\\Users\\85025\\.m2\\repository\\com\\github\\javaparser");
         List<File> jarFiles = findJarFiles(m2Repository);
@@ -54,6 +55,7 @@ public class ParsersAdapter {
             }
         }
 
+        TYPE_SOLVER=combinedTypeSolver;
         JavaSymbolSolver symbolSolver = new JavaSymbolSolver(combinedTypeSolver);
         ParserConfiguration parserConfig = new ParserConfiguration();
         parserConfig.setSymbolResolver(symbolSolver);
@@ -151,11 +153,13 @@ public class ParsersAdapter {
                     Methods caller = invocations.findMethod(Methods.constructIdentifier(packageName + "." + className, methodDeclaration.getNameAsString(), methodDeclaration.getParameters()));
                     for (MethodCallExpr methodCall : methodDeclaration.findAll(MethodCallExpr.class)) {
                         try {
-//                            String res = resolvePolymophicInvoke(methodCall);
+                            String prefix = resolvePolymophicInvoke(methodCall);
                             String[] calleeInfo = methodCall.resolve().getQualifiedSignature().split("[()]"); // 被调用方法信息
                             String calleeName = methodCall.getNameAsString();
                             String calleePrefix = calleeInfo[0].substring(0, calleeInfo[0].lastIndexOf('.'));
-                            /* 注意：这里在完成 F2 之后需要继续完善 */
+                            if (prefix != null) {
+                                calleePrefix = prefix;
+                            }
 
                             // 构造参数类型列表
                             ArrayList<String> calleeParamsList = new ArrayList<>();

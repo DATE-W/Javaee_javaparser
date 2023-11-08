@@ -113,10 +113,25 @@ public class Analyzer {
             // 分析调用者的声明
             for (MethodCallExpr methodCallExpr : caller.findByType(MethodCallExpr.class)) {
                 // 判断调用的是不是自己
-
-                /* 注意：这里在完成 F2 之后需要继续完善 */
-
+                String prefix = adapter.resolvePolymophicInvoke(methodCallExpr);
                 String target = methodCallExpr.resolve().getQualifiedSignature();
+                if (prefix != null) {
+                    int countDot = 0;
+                    for (int i = 0; i < prefix.length(); ++i) {
+                        if (prefix.charAt(i) == '.') {
+                            countDot++;
+                        }
+                    }
+                    for (int i = 0; i < target.length(); ++i) {
+                        if (target.charAt(i) == '.') {
+                            countDot--;
+                        }
+                        if (countDot < 0) {
+                            target = prefix + target.substring(i);
+                            break;
+                        }
+                    }
+                }
                 if (!target.equals(qualifiedSignature)) {
                     continue;
                 }
