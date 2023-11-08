@@ -136,8 +136,7 @@ public class Analyzer {
         }
     }
 
-
-    // 对于一个代码块，去用findLastAssignmentOrDeclaration函数递归的查找
+    // 对于一个代码块，去用 findLastAssignmentOrDeclaration 函数递归的查找
     private void findLastAssignmentsAndDeclarationsWithTargetInIfs(List<Statement> statements, String targetVariableName, List<Node> lastAssignmentsAndDeclarations) {
         for (Statement statement : statements) {
             if (statement instanceof IfStmt) {

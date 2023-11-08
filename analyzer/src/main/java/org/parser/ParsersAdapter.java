@@ -20,7 +20,7 @@ import java.util.Queue;
 public class ParsersAdapter {
     public static JavaParser CONFIGURED_PARSER; // 配置好的 JavaParser 对象
     private String path; // 项目路径
-    private int classesCount;
+    private int classesCount; // 类的个数统计
 
     // 构造函数
     public ParsersAdapter(String path) {
@@ -161,6 +161,7 @@ public class ParsersAdapter {
         }
     }
 
+    // 返回统计的类个数
     public int countClasses() {
         return classesCount;
     }

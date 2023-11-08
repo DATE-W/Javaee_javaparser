@@ -27,18 +27,13 @@ public class Interactor {
         interactor.closeScanner(); // 关闭 scanner
     }
     private static Interactor instance; // 交互器实例
-    private String myName = "Assistant";
-    private String yourName = "User";
+    private String myName = "Assistant"; // 交互器名字
+    private String yourName = "User"; // 用户名字
     private Scanner scanner = new Scanner(System.in); // 用于读取系统输入
     private boolean endFlag = false; // 交互结束标志
+    // 私有构造函数
     private Interactor() {}
-    private void showName(boolean who) {
-        if (who) {
-            System.out.print(yourName + ": ");
-        } else {
-            System.out.print(myName + ": ");
-        }
-    }
+
     // 获取交互器对象（单例模式）
     public static Interactor getInstance() {
         if (instance == null) {
@@ -46,11 +41,22 @@ public class Interactor {
         }
         return instance;
     }
+
+    // 展示说话人名字
+    private void showName(boolean who) {
+        if (who) {
+            System.out.print(yourName + ": ");
+        } else {
+            System.out.print(myName + ": ");
+        }
+    }
+
     // 输出提示语
     public void showPrompt() {
         showName(false);
         System.out.println("请选择功能（'1'-分析调用/'2'-分析参数/其他-退出）");
     }
+
     // 选择功能
     public int functionSelection() {
         showName(true);
@@ -62,6 +68,8 @@ public class Interactor {
         }
         return 0;
     }
+
+    // 调用分析的交互
     public void invocationAnalysis() {
         // 输出提示信息
         showName(false);
@@ -106,6 +114,8 @@ public class Interactor {
 
         Analyzer.getInstance().analyzeInvocations(packageName, className, methodName, depth);
     }
+
+    // 参数分析的交互
     public void parameterAnalysis() {
         showName(false);
         System.out.println("所有方法的参数来源如下");
@@ -113,30 +123,44 @@ public class Interactor {
         Analyzer.getInstance().analyzeParameter();
         System.out.println("");
     }
+
+    // 终止交互
     public void end() {
         endFlag = true;
     }
+
+    // 交互状态（是否终止）
     public boolean state() {
         return !endFlag;
     }
+
+    // 关闭 scanner
     public void closeScanner() {
         scanner.close();
     }
-    public void indent(int spaces) {
+
+    // 打印缩进
+    private void indent(int spaces) {
         if (spaces < 0) {
             return;
         }
         System.out.print(" ".repeat(spaces));
     }
+
+    // 在参数分析中打印函数参数
     public void printParameter(Parameter parameter) {
         printWithIndent(2, String.format("%s %s: ", parameter.getTypeAsString(), parameter.getNameAsString()));
     }
+
+    // 在参数分析中打印参数来源的表达式
     public <T extends Node> void printExpression(int depth, T expression) {
         int line = expression.getRange().get().begin.line; // 获取实参所在函数
         String fileName = expression.findAncestor(CompilationUnit.class).get().getStorage().get().getPath().getFileName().toString();
         indent(depth * 2);
         System.out.println(String.format("[%s: Line %d of %s]", expression, line, fileName)); // 打印信息
     }
+
+    // 选择重载的交互
     public int chooseOverloadedMethods(ArrayList<Methods> overload) {
         showName(false);
         System.out.println(String.format("请选择一个重载方法（0-%d）", overload.size() - 1));
@@ -156,23 +180,33 @@ public class Interactor {
         System.out.println("输入无效");
         return -1;
     }
+
+    // 展示统计数据
     public void showStatistics(int classesCount, int methodCount) {
         showName(false);
         System.out.println(String.format("分析完成，共扫描到 %d 个类和 %d 个方法，嘻嘻", classesCount, methodCount));
     }
+
+    // 提示方法不存在
     public void methodNotFount() {
         showName(false);
         System.out.println("方法不存在");
     }
+
+    // 在调用分析中输出提示
     public void invokes() {
         showName(false);
         System.out.println("它调用了这些方法");
     }
+
+    // 在调用分析中输出提示
     public void invoked() {
         showName(false);
         System.out.println("它被这些方法调用了");
 
     }
+
+    // 打印带有缩进的内容
     public void printWithIndent(int spaces, String content) {
         indent(spaces);
         System.out.println(content);
