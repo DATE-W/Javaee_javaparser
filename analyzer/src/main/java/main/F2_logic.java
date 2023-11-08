@@ -2,6 +2,7 @@ package main;
 
 import com.github.javaparser.*;
 import com.github.javaparser.ast.*;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.resolution.declarations.*;
@@ -10,6 +11,9 @@ import com.github.javaparser.symbolsolver.*;
 import com.github.javaparser.symbolsolver.javaparsermodel.JavaParserFacade;
 import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.*;
+import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+
 
 import java.io.FileInputStream;
 import java.util.HashMap;
@@ -23,7 +27,7 @@ public class F2_logic {
     public static void main(String[] args) {
         try {
             // 解析Main.java文件
-            FileInputStream in = new FileInputStream("src/main/java/animal/Main.java");
+            FileInputStream in = new FileInputStream("src/main/java/main/test3.java");
             CompilationUnit cu = StaticJavaParser.parse(in);
 
             // 配置类型解析器，它用于解析项目中的类型
@@ -43,23 +47,56 @@ public class F2_logic {
                     ResolvedReferenceTypeDeclaration typeDeclaration = resolvedType.asReferenceType().getTypeDeclaration().get();
                     // 尝试找到变量声明节点的祖先节点
                     objCreation.findAncestor(VariableDeclarator.class).ifPresent(varDecl -> {
+                        String scopePath=getScopePath(cu, objCreation);
+                        // 如果没有找到作用域标识符，使用"unknown"作为默认值
+                        if (scopePath.length() == 0) {
+                            scopePath="unknown";
+                        }
+                        // 创建一个包含作用域信息的键
+                        String key = scopePath + "." + varDecl.getNameAsString();
                         // 将变量名和类型声明放入映射中
-                        typeMap.put(varDecl.getNameAsString(), typeDeclaration);
+                        typeMap.put(key, typeDeclaration);
                     });
                 }
             });
 
             // 解析所有的方法调用表达式
             cu.findAll(MethodCallExpr.class).forEach(methodCall -> {
-                // 获取方法调用的作用域，如变量名或者this
                 Optional<Expression> optScope = methodCall.getScope();
                 optScope.ifPresent(scope -> {
-                    // 如果作用域是变量名
                     if (scope instanceof NameExpr) {
-                        // 获取变量名
                         String name = ((NameExpr) scope).getNameAsString();
+
+                        // 获取包含方法调用的方法声明或类/接口声明的作用域标识符
+                        StringBuilder scopeIdentifier = new StringBuilder();
+                        Optional<MethodDeclaration> methodDecl = methodCall.findAncestor(MethodDeclaration.class);
+                        if (methodDecl.isPresent()) {
+                            MethodDeclaration decl = methodDecl.get();
+                            ClassOrInterfaceDeclaration classDecl = decl.findAncestor(ClassOrInterfaceDeclaration.class).orElse(null);
+                            if (classDecl != null) {
+                                Optional<PackageDeclaration> pkgDecl = cu.getPackageDeclaration();
+                                if (pkgDecl.isPresent()) {
+                                    scopeIdentifier.append(pkgDecl.get().getNameAsString()).append(".");
+                                }
+                                scopeIdentifier.append(classDecl.getNameAsString()).append(".");
+                            }
+                            scopeIdentifier.append(decl.getNameAsString()).append(".");
+                        } else {
+                            // 如果没有方法祖先，我们可能在一个初始化块或字段声明中
+                            methodCall.findAncestor(ClassOrInterfaceDeclaration.class).ifPresent(classOrInterfaceDecl -> {
+                                String className = classOrInterfaceDecl.getNameAsString();
+                                classOrInterfaceDecl.findAncestor(PackageDeclaration.class).ifPresent(pkgDecl -> {
+                                    String packageName = pkgDecl.getNameAsString();
+                                    scopeIdentifier.append(packageName).append(".");
+                                });
+                                scopeIdentifier.append(className).append(".");
+                            });
+                        }
+
+                        // 使用作用域和变量名构建键
+                        String key = scopeIdentifier + name;
                         // 从映射中获取变量对应的实际类型
-                        ResolvedReferenceTypeDeclaration actualType = typeMap.get(name);
+                        ResolvedReferenceTypeDeclaration actualType = typeMap.get(key);
                         // 如果能找到实际类型
                         if (actualType != null) {
                             try {
@@ -91,5 +128,30 @@ public class F2_logic {
             // 主方法中的异常处理，打印堆栈跟踪
             e.printStackTrace();
         }
+    }
+
+    public static String getScopePath(CompilationUnit cu, ObjectCreationExpr objectCreation){
+        // 递归构建完整的嵌套路径，包括方法和类名
+        StringBuilder nestedPath = new StringBuilder();
+        Node currentNode = objectCreation;
+
+        while (currentNode != null) {
+            if (currentNode instanceof MethodDeclaration) {
+                MethodDeclaration method = (MethodDeclaration) currentNode;
+                if (nestedPath.length() > 0) {
+                    nestedPath.insert(0, ".");
+                }
+                nestedPath.insert(0, method.getNameAsString());
+            } else if (currentNode instanceof ClassOrInterfaceDeclaration) {
+                ClassOrInterfaceDeclaration classOrInterface = (ClassOrInterfaceDeclaration) currentNode;
+                if (nestedPath.length() > 0) {
+                    nestedPath.insert(0, ".");
+                }
+                nestedPath.insert(0, classOrInterface.getNameAsString());
+            }
+            currentNode = currentNode.getParentNode().orElse(null);
+        }
+
+        return cu.getPackageDeclaration()+"."+nestedPath.toString();
     }
 }
