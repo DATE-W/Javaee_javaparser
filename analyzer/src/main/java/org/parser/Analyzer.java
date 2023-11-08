@@ -4,11 +4,9 @@ import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
-import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.IfStmt;
-import com.github.javaparser.ast.stmt.WhileStmt;
-import com.github.javaparser.ast.stmt.ForStmt;
-import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.stmt.*;
+import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
+
 import java.util.*;
 
 public class Analyzer {
@@ -19,7 +17,7 @@ public class Analyzer {
     // 构造函数
     private Analyzer() {
         invocations = new Invocations(); // 创建关系图
-        adapter = new ParsersAdapter("E:\\User\\Desktop\\analyzer\\src\\main\\java"); // 创建适配器
+        adapter = new ParsersAdapter("src\\main\\java"); // 创建适配器
     }
 
     // 获取分析器对象（单例模式）
@@ -129,7 +127,7 @@ public class Analyzer {
 
                 // 实参是字面量则结束
                 if (argument.isLiteralExpr()) {
-                    return;
+                    continue;
                 }
 
                 // 继续找右值为字面量的赋值语句或声明语句
@@ -248,7 +246,7 @@ public class Analyzer {
                 if (lastExpression.isNameExpr()) {      // 是变量，继续查找
                     Interactor.getInstance().printExpression(depth, lastExpression);
                     findSource(method, lastExpression, depth + 1);
-                } else if (lastExpression.isLiteralExpr()) {  // 是字面量，停止查找
+                } else {  // 停止查找
                     Interactor.getInstance().printExpression(depth, lastExpression);
                 }
             }
