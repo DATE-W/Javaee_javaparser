@@ -1,4 +1,4 @@
-package org.parser;
+package test;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
@@ -8,9 +8,9 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -19,8 +19,7 @@ import java.util.*;
 
 public class ParsersAdapter {
     public static JavaParser CONFIGURED_PARSER; // 配置好的 JavaParser 对象
-    private String path; // 项目路径
-    private int classesCount;
+    String path; // 项目路径
 
     // 构造函数
     public ParsersAdapter(String path) {
@@ -31,7 +30,6 @@ public class ParsersAdapter {
             // 处理异常，例如记录错误日志或采取其他措施
             e.printStackTrace();
         }
-        this.classesCount = 0; // 记录类的数量
     }
 
 
@@ -61,6 +59,7 @@ public class ParsersAdapter {
             }
         }
 
+
         JavaSymbolSolver symbolSolver = new JavaSymbolSolver(combinedTypeSolver);
         ParserConfiguration parserConfig = new ParserConfiguration();
         parserConfig.setSymbolResolver(symbolSolver);
@@ -89,7 +88,7 @@ public class ParsersAdapter {
 
     // 分析项目目录下的所有 java 文件
     public void analyzeAllFiles(Invocations invocations) {
-        File directory = new File(path + "/main"); // 项目目录
+        File directory = new File(path + "/org/parser"); // 项目目录
         Queue<File> queue = new LinkedList<>(); // 基于链表的队列
 
         // 将所有方法加入图中
@@ -134,7 +133,6 @@ public class ParsersAdapter {
             String packageName = cu.getPackageDeclaration().get().getNameAsString(); // 获取包名
             for (ClassOrInterfaceDeclaration classDeclaration : cu.findAll(ClassOrInterfaceDeclaration.class)) { // 遍历所有类
                 String className = classDeclaration.getNameAsString(); // 获取类名
-                classesCount++;
                 for (MethodDeclaration methodDeclaration : classDeclaration.getMethods()) { // 遍历所有方法
                     invocations.addNode(packageName, className, methodDeclaration); // 添加方法结点
                 }
@@ -195,7 +193,6 @@ public class ParsersAdapter {
                                     calleeParamsList.add(paramType);
                                 }
                             }
-
                             invocations.addNode(calleePackage, calleeClass, calleeName, calleeParamsList); // 若不存在则加入图中
                             Methods callee = invocations.findMethod(Methods.constructIdentifier(calleePackage, calleeClass, calleeName, calleeParamsList)); // 找到被调用函数
                             invocations.addEdge(caller, callee); // 建立关系
@@ -209,9 +206,5 @@ public class ParsersAdapter {
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-    }
-
-    public int countClasses() {
-        return classesCount;
     }
 }
