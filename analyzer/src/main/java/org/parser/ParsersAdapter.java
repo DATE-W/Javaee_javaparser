@@ -38,7 +38,6 @@ public class ParsersAdapter {
         CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
         combinedTypeSolver.add(new ReflectionTypeSolver());
         combinedTypeSolver.add(new JavaParserTypeSolver(new File(path)));
-
         // 递归查找指定目录下的所有 .jar 文件并添加到类型解析器中
         File m2Repository = new File("C:\\Users\\85025\\.m2\\repository\\com\\github\\javaparser");
         List<File> jarFiles = findJarFiles(m2Repository);
@@ -77,7 +76,7 @@ public class ParsersAdapter {
 
     // 分析项目目录下的所有 java 文件
     public void analyzeAllFiles(Invocations invocations) {
-        File directory = new File(path + "\\parser"); // 项目目录
+        File directory = new File(path + "/org/parser"); // 项目目录
         Queue<File> queue = new LinkedList<>(); // 基于链表的队列
 
         // 将所有方法加入图中

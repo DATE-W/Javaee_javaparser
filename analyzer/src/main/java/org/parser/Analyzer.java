@@ -101,11 +101,15 @@ public class Analyzer {
                 Interactor.getInstance().printParameter(parameters.get(i));
                 findArgument(method, i, 2);
             }
+            Interactor.getInstance().printWithIndent(0, "");
         }
     }
 
     // 找到方法所有调用处的实参
     public void findArgument(Methods callee, int index, int depth) { // index 表示第几个实参
+        if (depth > 10) {
+            return;
+        }
         String qualifiedSignature = callee.qualifiedSignature();
         for (Methods caller : callee.getCallers()) { // 遍历调用者
             // 分析调用者的声明
