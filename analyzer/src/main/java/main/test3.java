@@ -14,17 +14,17 @@ class test3 {
                 public void speak() {
                     int A = 0;
                     int k = 1;
-                    Animal b = new Dog();
+                    Animal a = new Animal();
                     switch (A) {
                         case 0:
-                            Animal a=new Animal();
+                            Animal b=new Dog();
                             if (k > 0) {
                                 b.speak(); // It actually invokes the speak method of the Dog class
                             } else {
                                 a.speak(); // It actually invokes the speak method of the Dog class
                             }
                         case 1:
-                            b.speak();
+                            a.speak();
                     }
                 }
             }
