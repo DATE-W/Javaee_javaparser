@@ -148,20 +148,19 @@ public class ParsersAdapter {
                         try{
                             String[] calleeInfo = methodCall.resolve().getQualifiedSignature().split("[()]"); // 被调用方法信息
                             String calleeName = methodCall.getNameAsString();
-                            if (calleeInfo.length != 2) {
-                                continue;
-                            }
                             String calleePrefix = calleeInfo[0].substring(0, calleeInfo[0].lastIndexOf('.'));
-                            String[] calleeParamsType = calleeInfo[1].split(", ");
                             /* 注意：这里在完成 F2 之后需要继续完善 */
 
                             // 构造参数类型列表
                             ArrayList<String> calleeParamsList = new ArrayList<>();
-                            for (String paramType : calleeParamsType) {
-                                if (paramType.contains(".")) {
-                                    calleeParamsList.add(paramType.substring(paramType.lastIndexOf('.') + 1));
-                                } else {
-                                    calleeParamsList.add(paramType);
+                            if (calleeInfo.length >= 2) {
+                                String[] calleeParamsType = calleeInfo[1].split(", ");
+                                for (String paramType : calleeParamsType) {
+                                    if (paramType.contains(".")) {
+                                        calleeParamsList.add(paramType.substring(paramType.lastIndexOf('.') + 1));
+                                    } else {
+                                        calleeParamsList.add(paramType);
+                                    }
                                 }
                             }
 

@@ -167,6 +167,28 @@ public class Analyzer {
                         findLastAssignmentsAndDeclarationsWithTargetInIfs(elseStatements, targetVariableName, lastAssignmentsAndDeclarations);
                     }
                 }
+            } else if (statement instanceof ForStmt) {
+                ForStmt forStmt = (ForStmt) statement;
+                // 处理 for 循环语句
+                Statement body = forStmt.getBody();
+                if (body.isBlockStmt()) {
+                    BlockStmt blockStmt = body.asBlockStmt();
+                    findLastAssignmentsAndDeclarationsWithTargetInIfs(blockStmt.getStatements(), targetVariableName, lastAssignmentsAndDeclarations);
+                } else {
+                    List<Statement> bodyStatements = Collections.singletonList(body);
+                    findLastAssignmentsAndDeclarationsWithTargetInIfs(bodyStatements, targetVariableName, lastAssignmentsAndDeclarations);
+                }
+            } else if (statement instanceof WhileStmt) {
+                WhileStmt whileStmt = (WhileStmt) statement;
+                // 处理 while 循环语句
+                Statement body = whileStmt.getBody();
+                if (body.isBlockStmt()) {
+                    BlockStmt blockStmt = body.asBlockStmt();
+                    findLastAssignmentsAndDeclarationsWithTargetInIfs(blockStmt.getStatements(), targetVariableName, lastAssignmentsAndDeclarations);
+                } else {
+                    List<Statement> bodyStatements = Collections.singletonList(body);
+                    findLastAssignmentsAndDeclarationsWithTargetInIfs(bodyStatements, targetVariableName, lastAssignmentsAndDeclarations);
+                }
             }
         }
         findLastAssignmentOrDeclaration(statements, targetVariableName, lastAssignmentsAndDeclarations);
