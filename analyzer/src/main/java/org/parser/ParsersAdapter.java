@@ -2,30 +2,34 @@ package org.parser;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
+import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
-import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.NameExpr;
-import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.stmt.*;
+import com.github.javaparser.resolution.UnsolvedSymbolException;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
 import com.github.javaparser.symbolsolver.javaparsermodel.JavaParserFacade;
+import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.*;
 
 public class ParsersAdapter {
     public static JavaParser CONFIGURED_PARSER; // 配置好的 JavaParser 对象
     public static JavaParserFacade FACADE;
+    public static TypeSolver TYPE_SOLVER;
     private static HashMap<String, ResolvedReferenceTypeDeclaration> referenceTypeMap;
     private String path; // 项目路径
     private int classesCount;
@@ -42,6 +46,7 @@ public class ParsersAdapter {
         CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
         combinedTypeSolver.add(new ReflectionTypeSolver());
         combinedTypeSolver.add(new JavaParserTypeSolver(new File(path)));
+        TYPE_SOLVER=combinedTypeSolver;
         // 用类型解析器创建一个JavaParserFacade实例，它提供解析的高级接口
         FACADE = JavaParserFacade.get(combinedTypeSolver);
 
@@ -108,61 +113,101 @@ public class ParsersAdapter {
         }
     }
 
-    private void recordClassInstantiation(CompilationUnit cu)
-    {
-        // 收集所有的对象创建表达式（例如 new SomeClass()），以确定变量实际引用的类型
-        cu.findAll(ObjectCreationExpr.class).forEach(objCreation -> {
-            // 获取对象创建表达式的类型
-            ResolvedType resolvedType = FACADE.convertToUsage(objCreation.getType(), objCreation);
-            // 如果类型是引用类型，获取其声明
-            if (resolvedType.isReferenceType()) {
-                ResolvedReferenceTypeDeclaration typeDeclaration = resolvedType.asReferenceType().getTypeDeclaration().get();
-                // 尝试找到变量声明节点的祖先节点
-                objCreation.findAncestor(VariableDeclarator.class).ifPresent(varDecl -> {
-                    // 将变量名和类型声明放入映射中
-                    referenceTypeMap.put(varDecl.getNameAsString(), typeDeclaration);
-                });
-            }
-        });
-    }
+    public String resolvePolymophicInvoke(MethodCallExpr methodCall){
+        try {
+                Optional<Expression> scope = methodCall.getScope();
+                if (scope.isPresent() && scope.get() instanceof NameExpr) {
+                    NameExpr nameExpr = (NameExpr) scope.get();
+                    String name = nameExpr.getNameAsString();
 
-    private String resolvePolymorphicFunctionCalls(MethodCallExpr methodCall) {
-        // 获取方法调用的作用域，如变量名或者this
-        Optional<Expression> optScope = methodCall.getScope();
-        if (optScope.isPresent()) {
-            // 如果作用域是变量名
-            Expression scope = optScope.get();
-            if (scope instanceof NameExpr) {
-                // 获取变量名
-                String name = ((NameExpr) scope).getNameAsString();
-                // 从映射中获取变量对应的实际类型
-                ResolvedReferenceTypeDeclaration actualType = referenceTypeMap.get(name);
-                // 如果能找到实际类型
-                if (actualType != null) {
-                    try {
-                        // 解析方法调用的声明
-                        ResolvedMethodDeclaration method = FACADE.solve(methodCall).getCorrespondingDeclaration();
-                        // 在实际类型中查找对应的方法
-                        Optional<ResolvedMethodDeclaration> actualMethod = actualType.getDeclaredMethods().stream()
-                                .filter(m -> m.getName().equals(method.getName()))
-                                .findFirst();
+                    // 初始化resolvedType
+                    ResolvedType resolvedType = null;
 
-                        // 如果找到，返回方法调用和声明的详细信息
-                        if (actualMethod.isPresent()) {
-                            return actualMethod.get().getQualifiedSignature();
-                        } else {
-                            return method.getQualifiedSignature();
+                    // 找到最近的声明
+                    Node currentNode = methodCall;
+                    Optional<VariableDeclarator> variableDeclarator = Optional.empty();
+
+                    while (!(currentNode instanceof CompilationUnit)) {
+                        if (currentNode instanceof BlockStmt) {
+                            BlockStmt blockStmt = (BlockStmt) currentNode;
+                            variableDeclarator = blockStmt.getStatements().stream()
+                                    .filter(Statement::isExpressionStmt)
+                                    .map(Statement::asExpressionStmt)
+                                    .map(ExpressionStmt::getExpression)
+                                    .filter(Expression::isVariableDeclarationExpr)
+                                    .map(Expression::asVariableDeclarationExpr)
+                                    .flatMap(vde -> vde.getVariables().stream())
+                                    .filter(vd -> vd.getNameAsString().equals(name))
+                                    .findFirst();
+
+                            if (variableDeclarator.isPresent()) {
+                                break;
+                            }
                         }
-                    } catch (Exception e) {
-                        // 解析出现异常，返回错误信息
-                        System.out.println("Resolution error: " + e.getMessage());
-                        return "Resolution error: " + e.getMessage();
+                        else if (currentNode instanceof SwitchStmt) {
+                            SwitchStmt switchStmt = (SwitchStmt) currentNode;
+                            for (SwitchEntry switchEntry : switchStmt.getEntries()) {
+                                for (Statement entryStmt : switchEntry.getStatements()) {
+                                    // Now check if there's a variable declaration within the switch entry
+                                    if (entryStmt.isExpressionStmt() && entryStmt.asExpressionStmt().getExpression().isVariableDeclarationExpr()) {
+                                        VariableDeclarationExpr varDeclExpr = entryStmt.asExpressionStmt().getExpression().asVariableDeclarationExpr();
+                                        Optional<VariableDeclarator> optVarDecl = varDeclExpr.getVariables().stream()
+                                                .filter(vd -> vd.getNameAsString().equals(name))
+                                                .findFirst();
+
+                                        if (optVarDecl.isPresent()) {
+                                            variableDeclarator = optVarDecl;
+                                            break; // Break from the switchEntry loop
+                                        }
+                                    }
+                                }
+                                if (variableDeclarator.isPresent()) {
+                                    break; // Break from the switchStmt loop if we've found our variable
+                                }
+                            }
+                            if (variableDeclarator.isPresent()) {
+                                break; // Break from the switchStmt loop if we've found our variable
+                            }
+                        }
+                        // Check if we've reached an ObjectCreationExpr and if it contains the scope
+                        else if (currentNode instanceof ObjectCreationExpr) {
+                            ObjectCreationExpr objectCreationExpr = (ObjectCreationExpr) currentNode;
+                            boolean scopeIsInObjectCreation = objectCreationExpr.getArguments().stream()
+                                    .anyMatch(arg -> arg.toString().equals(name));
+                            if (scopeIsInObjectCreation) {
+                                break; // We found the scope in an object creation
+                            }
+                        }
+                        currentNode = currentNode.getParentNode().orElse(null);
+                    }
+
+                    // Attempt to resolve the type if we've found the declaration
+                    if (variableDeclarator.isPresent()) {
+                        VariableDeclarator varDecl = variableDeclarator.get();
+                        try {
+                            // Check the initializer of the variable to determine the actual type
+                            if (varDecl.getInitializer().isPresent() && varDecl.getInitializer().get().isObjectCreationExpr()) {
+                                // If the variable is initialized using 'new', resolve the type of the created object
+                                ObjectCreationExpr creationExpr = varDecl.getInitializer().get().asObjectCreationExpr();
+                                resolvedType = JavaParserFacade.get(TYPE_SOLVER).convertToUsage(creationExpr.getType(), methodCall);
+                            } else {
+                                // Otherwise, use the declared type
+                                resolvedType = JavaParserFacade.get(TYPE_SOLVER).getType(nameExpr);
+                            }
+                            // Output the qualified name of the type to see where the 'speak' method comes from
+                            return resolvedType.asReferenceType().getQualifiedName();
+                        } catch (UnsolvedSymbolException e) {
+                            System.err.println("Unresolved type for method call: " + methodCall);
+                        } catch (RuntimeException e) {
+                            System.err.println("Error resolving type for method call: " + methodCall + " - " + e.getMessage());
+                        }
                     }
                 }
-            }
+        } catch (Exception e) {
+            // 主方法中的异常处理，打印堆栈跟踪
+            e.printStackTrace();
         }
-        // 如果作用域不存在或其他任何情况，需要返回一个默认值或者错误
-        return "Unable to resolve the method call.";
+        return null;
     }
 
     // 分析文件中的所有调用语句
