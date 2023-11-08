@@ -13,9 +13,13 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeS
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
+
+import static com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver.getJarTypeSolver;
 
 public class ParsersAdapter {
     public static JavaParser CONFIGURED_PARSER; // 配置好的 JavaParser 对象
@@ -34,15 +38,46 @@ public class ParsersAdapter {
         CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
         combinedTypeSolver.add(new ReflectionTypeSolver());
         combinedTypeSolver.add(new JavaParserTypeSolver(new File(path)));
+
+        // 递归查找指定目录下的所有 .jar 文件并添加到类型解析器中
+        File m2Repository = new File("C:\\Users\\85025\\.m2\\repository\\com\\github\\javaparser");
+        List<File> jarFiles = findJarFiles(m2Repository);
+        for (File jarFile : jarFiles) {
+            try {
+                combinedTypeSolver.add(getJarTypeSolver(jarFile.getAbsolutePath()));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         JavaSymbolSolver symbolSolver = new JavaSymbolSolver(combinedTypeSolver);
         ParserConfiguration parserConfig = new ParserConfiguration();
         parserConfig.setSymbolResolver(symbolSolver);
         CONFIGURED_PARSER = new JavaParser(parserConfig);
     }
 
+    private static List<File> findJarFiles(File directory) {
+        List<File> jarFiles = new ArrayList<>();
+        if (directory != null && directory.exists() && directory.isDirectory()) {
+            File[] files = directory.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isDirectory()) {
+                        // 如果是目录，递归查找
+                        jarFiles.addAll(findJarFiles(file));
+                    } else if (file.isFile() && file.getName().endsWith(".jar")) {
+                        // 如果是 .jar 文件，添加到列表中
+                        jarFiles.add(file);
+                    }
+                }
+            }
+        }
+        return jarFiles;
+    }
+
     // 分析项目目录下的所有 java 文件
     public void analyzeAllFiles(Invocations invocations) {
-        File directory = new File(path + "/main"); // 项目目录
+        File directory = new File(path + "\\parser"); // 项目目录
         Queue<File> queue = new LinkedList<>(); // 基于链表的队列
 
         // 将所有方法加入图中
@@ -130,6 +165,8 @@ public class ParsersAdapter {
                                     calleeParamsList.add(paramType);
                                 }
                             }
+
+                            // bug: 不能解决参数类型为 Container<String> 的情况
 
                             invocations.addNode(calleePrefix, calleeName,calleeParamsList); // 若不存在则加入图中
                             Methods callee = invocations.findMethod(Methods.constructIdentifier(calleePrefix, calleeName, calleeParamsList)); // 找到被调用函数

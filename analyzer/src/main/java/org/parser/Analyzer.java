@@ -19,7 +19,7 @@ public class Analyzer {
     // 构造函数
     private Analyzer() {
         invocations = new Invocations(); // 创建关系图
-        adapter = new ParsersAdapter("src/main/java"); // 创建适配器
+        adapter = new ParsersAdapter("E:\\User\\Desktop\\analyzer\\src\\main\\java"); // 创建适配器
     }
 
     // 获取分析器对象（单例模式）
@@ -40,8 +40,7 @@ public class Analyzer {
     private ArrayList<Methods> findFunctionOverload(String prefix, String methodName) {
         ArrayList<Methods> ret = new ArrayList<>();
         for (Methods method : invocations.getAllMethods()) {
-            if (method.getMethodName().equals(methodName) &&
-                    method.getPrefix().equals(prefix)) {
+            if (method.getMethodName().equals(methodName) && method.getPrefix().equals(prefix)) {
                 ret.add(method);
             }
         }

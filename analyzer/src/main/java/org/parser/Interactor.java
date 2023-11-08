@@ -162,7 +162,7 @@ public class Interactor {
         System.out.println(String.format("请选择一个重载方法（0-%d）", overload.size() - 1));
         for (int i = 0; i < overload.size(); ++i) {
             Methods method = overload.get(i);
-            printWithIndent(2, String.format("方法 %d: %s", i, method.getDeclaration().getDeclarationAsString()));
+            printWithIndent(2, String.format("方法 %d: %s", i, method.getIdentifier()));
         }
         showName(true);
         if (scanner.hasNextInt()) {
@@ -180,7 +180,7 @@ public class Interactor {
     // 展示统计数据
     public void showStatistics(int classesCount, int methodCount) {
         showName(false);
-        System.out.println(String.format("分析完成，共扫描到 %d 个类和 %d 个方法，嘻嘻", classesCount, methodCount));
+        System.out.println(String.format("分析完成，共扫描到 %d 个类和 %d 个方法，嘿嘿", classesCount, methodCount));
     }
 
     // 提示方法不存在
