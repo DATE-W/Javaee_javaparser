@@ -37,12 +37,11 @@ public class Analyzer {
     }
 
     // 寻找指定方法的所有重载
-    private ArrayList<Methods> findFunctionOverload(String packageName, String className, String methodName) {
+    private ArrayList<Methods> findFunctionOverload(String prefix, String methodName) {
         ArrayList<Methods> ret = new ArrayList<>();
         for (Methods method : invocations.getAllMethods()) {
             if (method.getMethodName().equals(methodName) &&
-                    method.getClassName().equals(className) &&
-                    method.getPackageName().equals(packageName)) {
+                    method.getPrefix().equals(prefix)) {
                 ret.add(method);
             }
         }
@@ -50,9 +49,9 @@ public class Analyzer {
     }
 
     // 分析方法调用关系
-    public void analyzeInvocations(String packageName, String className, String methodName, int depth) {
+    public void analyzeInvocations(String prefix, String methodName, int depth) {
         // 查找所有候选方法
-        ArrayList<Methods> overload = findFunctionOverload(packageName, className, methodName);
+        ArrayList<Methods> overload = findFunctionOverload(prefix, methodName);
         if (overload.isEmpty()) {
             Interactor.getInstance().methodNotFount();
             return;

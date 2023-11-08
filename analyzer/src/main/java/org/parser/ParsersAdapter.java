@@ -89,7 +89,7 @@ public class ParsersAdapter {
                 String className = classDeclaration.getNameAsString(); // 获取类名
                 classesCount++;
                 for (MethodDeclaration methodDeclaration : classDeclaration.getMethods()) { // 遍历所有方法
-                    invocations.addNode(packageName, className, methodDeclaration); // 添加方法结点
+                    invocations.addNode(packageName + "." + className, methodDeclaration); // 添加方法结点
                 }
             }
         } catch (FileNotFoundException e) {
@@ -109,7 +109,7 @@ public class ParsersAdapter {
             for (ClassOrInterfaceDeclaration classDeclaration : cu.findAll(ClassOrInterfaceDeclaration.class)) { // 遍历类
                 String className = classDeclaration.getNameAsString(); // 获取类名
                 for (MethodDeclaration methodDeclaration : classDeclaration.getMethods()) { // 遍历方法
-                    Methods caller = invocations.findMethod(Methods.constructIdentifier(packageName, className, methodDeclaration.getNameAsString(), methodDeclaration.getParameters()));
+                    Methods caller = invocations.findMethod(Methods.constructIdentifier(packageName + "." + className, methodDeclaration.getNameAsString(), methodDeclaration.getParameters()));
                     for (MethodCallExpr methodCall : methodDeclaration.findAll(MethodCallExpr.class)) {
                         try{
                             String[] calleeInfo = methodCall.resolve().getQualifiedSignature().split("[()]"); // 被调用方法信息
@@ -117,24 +117,9 @@ public class ParsersAdapter {
                             if (calleeInfo.length != 2) {
                                 continue;
                             }
-                            String[] calleeBody = calleeInfo[0].split("\\.");
+                            String calleePrefix = calleeInfo[0].substring(0, calleeInfo[0].lastIndexOf('.'));
                             String[] calleeParamsType = calleeInfo[1].split(", ");
-
-                            // 获取被调用者的类和包
-
                             /* 注意：这里在完成 F2 之后需要继续完善 */
-                            String calleeClass = null;
-                            String calleePackage = null;
-                            for (int i = calleeBody.length - 1; i >= 2; i--) {
-                                if (calleeBody[i].contains(calleeName)) {
-                                    calleeClass = calleeBody[i - 1];
-                                    calleePackage = calleeBody[i - 2];
-                                    break;
-                                }
-                            }
-                            if (calleePackage == null || calleeClass == null) {
-                                continue;
-                            }
 
                             // 构造参数类型列表
                             ArrayList<String> calleeParamsList = new ArrayList<>();
@@ -146,8 +131,8 @@ public class ParsersAdapter {
                                 }
                             }
 
-                            invocations.addNode(calleePackage, calleeClass, calleeName,calleeParamsList); // 若不存在则加入图中
-                            Methods callee = invocations.findMethod(Methods.constructIdentifier(calleePackage, calleeClass, calleeName, calleeParamsList)); // 找到被调用函数
+                            invocations.addNode(calleePrefix, calleeName,calleeParamsList); // 若不存在则加入图中
+                            Methods callee = invocations.findMethod(Methods.constructIdentifier(calleePrefix, calleeName, calleeParamsList)); // 找到被调用函数
                             invocations.addEdge(caller, callee); // 建立关系
                         } catch (Exception e) {
                             System.out.println(e);

@@ -91,16 +91,12 @@ public class Interactor {
         String methodName = parts[0];
 
         // 提取包名和类名
-        String[] packageAndClass = parts[1].split("\\.");
-        if (packageAndClass.length < 2) {
+        String[] prefix = parts[1].split("\\.");
+        if (prefix.length < 2) {
             showName(false);
             System.out.println("参数 2 格式错误");
             return;
         }
-
-        // 获得包名和类名
-        String packageName = packageAndClass[0];
-        String className = packageAndClass[1];
 
         // 获取深度值
         int depth;
@@ -112,7 +108,7 @@ public class Interactor {
             return;
         }
 
-        Analyzer.getInstance().analyzeInvocations(packageName, className, methodName, depth);
+        Analyzer.getInstance().analyzeInvocations(parts[1], methodName, depth);
     }
 
     // 参数分析的交互

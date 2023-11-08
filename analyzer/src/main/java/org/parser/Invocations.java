@@ -13,16 +13,16 @@ public class Invocations {
     }
 
     // 添加结点，适用于找得到声明的用户自定义函数
-    public void addNode(String packageName, String className, MethodDeclaration declaration) {
-        Methods node = new Methods(packageName, className, declaration);
+    public void addNode(String prefix, MethodDeclaration declaration) {
+        Methods node = new Methods(prefix, declaration);
         if (!table.containsKey(node.getIdentifier())) {
             table.put(node.getIdentifier(), node);
         }
     }
 
     // 添加结点，适用于找不到声明的系统函数，需要传入参数类型列表
-    public void addNode(String packageName, String className, String methodName, ArrayList<String> typeList) {
-        Methods node = new Methods(packageName, className, methodName, typeList);
+    public void addNode(String prefix, String methodName, ArrayList<String> typeList) {
+        Methods node = new Methods(prefix, methodName, typeList);
         if (!table.containsKey(node.getIdentifier())) {
             table.put(node.getIdentifier(), node);
         }

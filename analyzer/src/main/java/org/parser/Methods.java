@@ -8,8 +8,7 @@ import com.github.javaparser.ast.body.Parameter;
 import java.util.ArrayList;
 
 public class Methods {
-    private String packageName; // 方法包名
-    private String className; // 方法类名
+    private String prefix; // 方法前缀
     private String methodName; // 方法名
 
     // 所有方法要么有 declaration 要么有 typeList
@@ -20,23 +19,22 @@ public class Methods {
     private ArrayList<Methods> callees; // 被方法调用者列表
 
     // 根据方法信息构造方法的标识符
-    public static String constructIdentifier(String packageName, String className, String methodName, NodeList<Parameter> params) {
+    public static String constructIdentifier(String prefix, String methodName, NodeList<Parameter> params) {
         ArrayList<String> typeList = new ArrayList<>();
         for (Parameter param : params) {
             typeList.add(param.getType().asString());
         }
-        return constructIdentifier(packageName, className, methodName, typeList);
+        return constructIdentifier(prefix, methodName, typeList);
     }
 
     // 根据方法的信息构造方法的标识符
-    public static String constructIdentifier(String packageName, String className, String methodName, ArrayList<String> typeList) {
-        return String.format("%s.%s.%s(%s)", packageName, className, methodName, String.join(", ", typeList));
+    public static String constructIdentifier(String prefix, String methodName, ArrayList<String> typeList) {
+        return String.format("%s.%s(%s)", prefix, methodName, String.join(", ", typeList));
     }
 
     // 由包名、类名、方法名构造，适用于找不到声明的系统函数
-    public Methods(String packageName, String className, String methodName, ArrayList<String> typeList) {
-        this.packageName = packageName;
-        this.className = className;
+    public Methods(String prefix, String methodName, ArrayList<String> typeList) {
+        this.prefix = prefix;
         this.methodName = methodName;
         this.declaration = null;
         this.typeList = typeList;
@@ -45,9 +43,8 @@ public class Methods {
     }
 
     // 由包名、类名、方法声明构造，适用于用户编写的自定义函数
-    public Methods(String packageName, String className, MethodDeclaration declaration) {
-        this.packageName = packageName;
-        this.className = className;
+    public Methods(String prefix, MethodDeclaration declaration) {
+        this.prefix = prefix;
         this.declaration = declaration;
         this.methodName = declaration.getNameAsString();
         callers = new ArrayList<>();
@@ -71,19 +68,19 @@ public class Methods {
     // 获取方法的标识符
     public String getIdentifier() {
         if (declaration == null) { // 针对找不到声明的系统函数
-            return constructIdentifier(packageName, className, methodName, typeList);
+            return constructIdentifier(prefix, methodName, typeList);
         }
         // 针对带有声明信息的用户自定义函数
         ArrayList<String> typeList = new ArrayList<>();
         for (Parameter param : declaration.getParameters()) { // 将所有参数类型加入列表
             typeList.add(param.getType().asString());
         }
-        return String.format("%s.%s.%s(%s)", packageName, className, methodName, String.join(", ", typeList));
+        return String.format("%s.%s(%s)", prefix, methodName, String.join(", ", typeList));
     }
 
     // 获取用于打印的信息串
     public String getInfoString(int depth) {
-        return String.format("[%s, %s.%s, depth=%d]", methodName, packageName, className, depth);
+        return String.format("[%s, %s, depth=%d]", methodName, prefix, depth);
     }
 
     // 是否系统函数
@@ -130,14 +127,7 @@ public class Methods {
     public String getMethodName() {
         return methodName;
     }
-
-    // 获取方法包名
-    public String getPackageName() {
-        return packageName;
-    }
-
-    // 获取方法类名
-    public String getClassName() {
-        return className;
+    public String getPrefix() {
+        return prefix;
     }
 }
