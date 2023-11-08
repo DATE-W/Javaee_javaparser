@@ -112,10 +112,10 @@ public class Analyzer {
         for (Methods caller : callee.getCallers()) { // 遍历调用者
             // 分析调用者的声明
             for (MethodCallExpr methodCallExpr : caller.findByType(MethodCallExpr.class)) {
-                // 判断调用的是不是自己
-                String prefix = adapter.resolvePolymophicInvoke(methodCallExpr);
+                // 分析是否存在多态情况
+                String prefix = adapter.resolvePolymophicInvoke(methodCallExpr); // 找到实际的前缀
                 String target = methodCallExpr.resolve().getQualifiedSignature();
-                if (prefix != null) {
+                if (prefix != null) { // 若存在实际的前缀，用其替换原来的
                     int countDot = 0;
                     for (int i = 0; i < prefix.length(); ++i) {
                         if (prefix.charAt(i) == '.') {
@@ -132,6 +132,8 @@ public class Analyzer {
                         }
                     }
                 }
+
+                // 判断调用的是不是自己
                 if (!target.equals(qualifiedSignature)) {
                     continue;
                 }
@@ -241,11 +243,15 @@ public class Analyzer {
 
     // 找到实参的来源
     public void findSource(Methods method, Expression variable, int depth) {
+        // 变量原来出现的位置
+        int beginLine = variable.getRange().get().begin.line;
         List<Node> lastAssignmentsAndDeclarations = new ArrayList<>();
         List<Expression> lastExpressions = new ArrayList<>();
         findLastAssignmentsAndDeclarationsWithTargetInIfs(method.getDeclaration().getBody().get().getStatements(), variable.toString(), lastAssignmentsAndDeclarations);
         // 将这些表达式的右侧都提取出来
         for (Node node : lastAssignmentsAndDeclarations) {
+            if (node.getRange().get().begin.line > beginLine)
+                continue;
             if (node instanceof AssignExpr) {
                 AssignExpr assignExpr = (AssignExpr) node;
                 lastExpressions.add(assignExpr.getValue());
